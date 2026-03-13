@@ -1,10 +1,10 @@
 import chalk from "chalk";
 import { type ConfigLoader, FileConfigLoader } from "@/src/core/config";
 import {
-	type GitOperations,
 	addRemote,
 	commitCount,
 	createEmptyCommit,
+	type GitOperations,
 	initMirrorRepo,
 	push,
 } from "@/src/core/git";
@@ -16,7 +16,7 @@ import {
 	searchCommits,
 	switchAccount,
 } from "@/src/core/github";
-import { type StateStore, FileStateStore } from "@/src/core/state";
+import { FileStateStore, type StateStore } from "@/src/core/state";
 
 /**
  * Options accepted by {@link sync}.

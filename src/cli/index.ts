@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 import { resolve } from "node:path";
-import { Command } from "commander";
 import chalk from "chalk";
+import { Command } from "commander";
+import { loadConfig } from "@/src/core/config";
 import {
+	checkGhAccounts,
 	init,
 	promptForOptions,
-	checkGhAccounts,
 	runGhLogin,
 } from "@/src/core/init";
-import { sync } from "@/src/core/sync";
-import { loadConfig } from "@/src/core/config";
-import { loadState } from "@/src/core/state";
 import {
 	installSchedule,
 	removeSchedule,
 	scheduleStatus,
 } from "@/src/core/launchd";
+import { loadState } from "@/src/core/state";
+import { sync } from "@/src/core/sync";
 
 const program = new Command();
 

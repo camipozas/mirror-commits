@@ -1,4 +1,4 @@
-import { GitBranch, Shield, Zap, Clock, Github, Terminal } from "lucide-react";
+import { Clock, GitBranch, Github, Shield, Terminal, Zap } from "lucide-react";
 import { ConfigForm } from "@/components/config-form";
 import { ThemeToggle } from "@/components/theme-toggle";
 

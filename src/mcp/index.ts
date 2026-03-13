@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { registerInitTool } from "@/src/mcp/tools/init";
-import { registerSyncTool } from "@/src/mcp/tools/sync";
-import { registerStatusTool } from "@/src/mcp/tools/status";
-import { registerScheduleTool } from "@/src/mcp/tools/schedule";
-import { registerListReposTool } from "@/src/mcp/tools/list-repos";
 import { registerConfigTool } from "@/src/mcp/tools/config";
+import { registerInitTool } from "@/src/mcp/tools/init";
+import { registerListReposTool } from "@/src/mcp/tools/list-repos";
 import { registerLogTool } from "@/src/mcp/tools/log";
+import { registerScheduleTool } from "@/src/mcp/tools/schedule";
+import { registerStatusTool } from "@/src/mcp/tools/status";
+import { registerSyncTool } from "@/src/mcp/tools/sync";
 
 /**
  * MCP server for mirror-commits.

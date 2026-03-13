@@ -1,6 +1,6 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { InitRunner } from "@/src/core/init";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { InitDependencies, InitOptions } from "@/src/core/init";
+import { InitRunner } from "@/src/core/init";
 
 // Stub dependencies
 function createMockDeps(): InitDependencies {
