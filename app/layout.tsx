@@ -22,6 +22,7 @@ export default function RootLayout({
 	return (
 		<html lang="en" suppressHydrationWarning>
 			<head>
+				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: inline script to prevent FOUC */}
 				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
 			</head>
 			<body className="min-h-screen antialiased">{children}</body>

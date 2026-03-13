@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock external dependencies
 vi.mock("@/src/core/github.js", () => ({
@@ -26,12 +26,12 @@ const mockCreateEmptyCommit = vi.mocked(
 const mockPush = vi.mocked((await import("@/src/core/git.js")).push);
 
 let tempDir: string;
-let tempStateFile: string;
+let _tempStateFile: string;
 let tempConfigFile: string;
 
 beforeEach(async () => {
 	tempDir = await mkdtemp(join(tmpdir(), "mirror-sync-"));
-	tempStateFile = join(tempDir, "state.json");
+	_tempStateFile = join(tempDir, "state.json");
 	tempConfigFile = join(tempDir, "config.json");
 
 	vi.resetAllMocks();

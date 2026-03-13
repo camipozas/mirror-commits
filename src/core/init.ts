@@ -1,19 +1,19 @@
-import { createInterface } from "node:readline/promises";
+import { spawn } from "node:child_process";
 import { writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { spawn } from "node:child_process";
+import { createInterface } from "node:readline/promises";
 import chalk from "chalk";
-import { CONFIG_FILE, STATE_DIR } from "@/src/lib/constants";
-import type { Config } from "@/src/lib/schema";
 import { type GitOperations, SystemGitOperations } from "@/src/core/git";
 import {
 	type AccountManager,
-	type RepoManager,
 	GhAccountManager,
 	GhRepoManager,
+	type RepoManager,
 } from "@/src/core/github";
-import { type StateStore, FileStateStore } from "@/src/core/state";
+import { FileStateStore, type StateStore } from "@/src/core/state";
 import { sync } from "@/src/core/sync";
+import { CONFIG_FILE, STATE_DIR } from "@/src/lib/constants";
+import type { Config } from "@/src/lib/schema";
 
 /**
  * Parameters required to set up mirror-commits for the first time.
@@ -58,20 +58,18 @@ export async function promptForOptions(): Promise<InitOptions> {
 
 	console.log(chalk.bold("\nmirror-commits setup\n"));
 
-	const workOrg = await rl.question(chalk.blue("? ") + "Work GitHub org: ");
+	const prompt = chalk.blue("? ");
+	const workOrg = await rl.question(`${prompt}Work GitHub org: `);
 	const workEmailsRaw = await rl.question(
-		chalk.blue("? ") + "Work email(s) (comma-separated): ",
+		`${prompt}Work email(s) (comma-separated): `,
 	);
-	const workGhUser = await rl.question(chalk.blue("? ") + "Work gh username: ");
-	const personalAccount = await rl.question(
-		chalk.blue("? ") + "Personal gh username: ",
-	);
+	const workGhUser = await rl.question(`${prompt}Work gh username: `);
+	const personalAccount = await rl.question(`${prompt}Personal gh username: `);
 	const mirrorRepoName =
-		(await rl.question(
-			chalk.blue("? ") + "Mirror repo name (work-mirror): ",
-		)) || "work-mirror";
+		(await rl.question(`${prompt}Mirror repo name (work-mirror): `)) ||
+		"work-mirror";
 	const personalEmail = await rl.question(
-		chalk.blue("? ") + "Personal email (for commit author): ",
+		`${prompt}Personal email (for commit author): `,
 	);
 
 	rl.close();
@@ -97,8 +95,7 @@ export async function promptForOptions(): Promise<InitOptions> {
 function parseGhAuthUsers(output: string): Set<string> {
 	const users = new Set<string>();
 	const regex = /Logged in to github\.com account (\S+)/g;
-	let match: RegExpExecArray | null;
-	while ((match = regex.exec(output)) !== null) {
+	for (const match of output.matchAll(regex)) {
 		users.add(match[1]);
 	}
 	return users;

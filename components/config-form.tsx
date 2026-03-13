@@ -1,7 +1,7 @@
 "use client";
 
+import { Check, Copy } from "lucide-react";
 import { useState } from "react";
-import { Copy, Check } from "lucide-react";
 
 interface Config {
 	workEmails: string[];
@@ -81,10 +81,10 @@ export function ConfigForm() {
 				/>
 			</div>
 
-			<div>
-				<label className="block text-xs text-text-muted mb-1.5">
+			<label className="block">
+				<span className="block text-xs text-text-muted mb-1.5">
 					Work Emails (comma-separated)
-				</label>
+				</span>
 				<input
 					type="text"
 					value={config.workEmails.join(", ")}
@@ -100,12 +100,12 @@ export function ConfigForm() {
 					placeholder="you@company.com"
 					className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-border-focus focus:outline-none transition-colors"
 				/>
-			</div>
+			</label>
 
-			<div>
-				<label className="block text-xs text-text-muted mb-1.5">
+			<label className="block">
+				<span className="block text-xs text-text-muted mb-1.5">
 					Excluded Repos (one per line)
-				</label>
+				</span>
 				<textarea
 					value={config.excludeRepos.join("\n")}
 					onChange={(e) =>
@@ -121,7 +121,7 @@ export function ConfigForm() {
 					rows={3}
 					className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-border-focus focus:outline-none transition-colors resize-none"
 				/>
-			</div>
+			</label>
 
 			<div className="flex items-center gap-3">
 				<button
@@ -153,8 +153,8 @@ function Field({
 	placeholder: string;
 }) {
 	return (
-		<div>
-			<label className="block text-xs text-text-muted mb-1.5">{label}</label>
+		<label className="block">
+			<span className="block text-xs text-text-muted mb-1.5">{label}</span>
 			<input
 				type="text"
 				value={value}
@@ -162,6 +162,6 @@ function Field({
 				placeholder={placeholder}
 				className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-border-focus focus:outline-none transition-colors"
 			/>
-		</div>
+		</label>
 	);
 }
