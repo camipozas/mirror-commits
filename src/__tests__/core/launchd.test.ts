@@ -1,14 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let tempDir: string;
-let mockPlistPath: string;
+let _mockPlistPath: string;
 
 beforeEach(async () => {
 	tempDir = await mkdtemp(join(tmpdir(), "mirror-launchd-"));
-	mockPlistPath = join(tempDir, "test.plist");
+	_mockPlistPath = join(tempDir, "test.plist");
 });
 
 afterEach(async () => {
@@ -44,7 +44,11 @@ vi.mock("node:child_process", async (importOriginal) => {
 				callback(null, { stdout: "ok", stderr: "" });
 				return {} as ReturnType<typeof original.execFile>;
 			}
-			return (original.execFile as Function)(cmd, args, ...rest);
+			return (original.execFile as (...a: unknown[]) => unknown)(
+				cmd,
+				args,
+				...rest,
+			);
 		}),
 	};
 });

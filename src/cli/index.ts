@@ -1,25 +1,22 @@
 #!/usr/bin/env node
 import { resolve } from "node:path";
-import { Command } from "commander";
 import chalk from "chalk";
-import { init } from "@/src/core/init";
-import { sync } from "@/src/core/sync";
+import { Command } from "commander";
 import { loadConfig } from "@/src/core/config";
-import { loadState } from "@/src/core/state";
+import {
+	checkGhAccounts,
+	init,
+	promptForOptions,
+	runGhLogin,
+} from "@/src/core/init";
 import {
 	installSchedule,
 	removeSchedule,
 	scheduleStatus,
 } from "@/src/core/launchd";
+import { loadState } from "@/src/core/state";
+import { sync } from "@/src/core/sync";
 
-/**
- * Root CLI program.
- *
- * @description Entry point for the `mirror` command. Sub-commands are
- * registered below. Each command is a thin adapter: it parses CLI arguments
- * and delegates to the core domain functions, keeping business logic out of
- * this file (Single Responsibility).
- */
 const program = new Command();
 
 program
@@ -29,26 +26,82 @@ program
 
 program
 	.command("init")
-	.description("One-time setup: verify gh auth, create mirror repo")
-	.option("--work-org <org>", "Work GitHub org", "Euronet-RiaDigital-Product")
-	.option(
-		"--work-emails <emails>",
-		"Comma-separated work emails",
-		"cpozas@riamoneytransfer.com",
+	.description(
+		"One-time setup: verify gh auth, create mirror repo, run first sync",
 	)
-	.option("--work-user <user>", "Work gh username", "CPozas_euronet")
-	.option("--personal <account>", "Personal gh username", "camipozas")
+	.option("--work-org <org>", "Work GitHub org")
+	.option("--work-emails <emails>", "Comma-separated work emails")
+	.option("--work-user <user>", "Work gh username")
+	.option("--personal <account>", "Personal gh username")
 	.option("--repo-name <name>", "Mirror repo name", "work-mirror")
+	.option("--personal-email <email>", "Personal email for commit author")
+	.option("--no-sync", "Skip automatic first sync")
 	.action(async (opts) => {
 		try {
-			const result = await init({
-				workOrg: opts.workOrg,
-				workEmails: opts.workEmails.split(",").map((e: string) => e.trim()),
-				workGhUser: opts.workUser,
-				personalAccount: opts.personal,
-				mirrorRepoName: opts.repoName,
-			});
-			console.log(chalk.green(result));
+			const isInteractive =
+				!opts.workOrg && !opts.workEmails && !opts.workUser && !opts.personal;
+
+			let options: {
+				workOrg: string;
+				workEmails: string[];
+				workGhUser: string;
+				personalAccount: string;
+				mirrorRepoName: string;
+				personalEmail: string;
+			};
+
+			if (isInteractive) {
+				// Interactive mode: prompt for everything
+				options = await promptForOptions();
+
+				// Check gh accounts
+				console.log(chalk.blue("\nChecking gh auth..."));
+				const accounts = await checkGhAccounts();
+
+				if (accounts.has(options.workGhUser)) {
+					console.log(
+						chalk.green(`  ✓ Work account (${options.workGhUser}) found`),
+					);
+				} else {
+					console.log(
+						chalk.yellow(`  ✗ Work account (${options.workGhUser}) not found`),
+					);
+					console.log(chalk.blue("  → Opening browser to add work account..."));
+					await runGhLogin();
+				}
+
+				if (accounts.has(options.personalAccount)) {
+					console.log(
+						chalk.green(
+							`  ✓ Personal account (${options.personalAccount}) found`,
+						),
+					);
+				} else {
+					console.log(
+						chalk.yellow(
+							`  ✗ Personal account (${options.personalAccount}) not found`,
+						),
+					);
+					console.log(
+						chalk.blue("  → Opening browser to add personal account..."),
+					);
+					await runGhLogin();
+				}
+			} else {
+				// Non-interactive mode: use flags
+				options = {
+					workOrg: opts.workOrg ?? "",
+					workEmails: (opts.workEmails ?? "")
+						.split(",")
+						.map((e: string) => e.trim()),
+					workGhUser: opts.workUser ?? "",
+					personalAccount: opts.personal ?? "",
+					mirrorRepoName: opts.repoName,
+					personalEmail: opts.personalEmail ?? "",
+				};
+			}
+
+			await init(options, opts.sync !== false);
 		} catch (err) {
 			console.error(chalk.red(`Init failed: ${err}`));
 			process.exit(1);
@@ -113,9 +166,6 @@ program
 		}
 	});
 
-/**
- * Parent command grouping all schedule sub-commands.
- */
 const schedule = program
 	.command("schedule")
 	.description("Manage daily sync schedule (macOS launchd)");

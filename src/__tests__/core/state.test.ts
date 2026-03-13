@@ -1,8 +1,7 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { mkdtemp, readFile, rm, writeFile, mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { vi } from "vitest";
+import { join } from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Mock the constants to use a temp dir
 const tempDir = await mkdtemp(join(tmpdir(), "mirror-test-"));

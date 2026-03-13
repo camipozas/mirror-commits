@@ -1,9 +1,9 @@
-import { resolve } from "node:path";
 import { writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v4";
-import { CONFIG_FILE } from "@/src/lib/constants";
 import { loadConfig } from "@/src/core/config";
+import { CONFIG_FILE } from "@/src/lib/constants";
 
 /**
  * Register the `mirror_config` tool on the given MCP server.
@@ -27,7 +27,7 @@ export function registerConfigTool(server: McpServer): void {
 			},
 		},
 		async ({ excludeRepos }) => {
-			let config;
+			let config: Awaited<ReturnType<typeof loadConfig>>;
 			try {
 				config = await loadConfig();
 			} catch {

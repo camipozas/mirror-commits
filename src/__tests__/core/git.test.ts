@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { execFile } from "node:child_process";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { promisify } from "node:util";
+import { afterEach, describe, expect, it } from "vitest";
 import {
 	addRemote,
 	commitCount,
@@ -59,6 +59,32 @@ describe("createEmptyCommit", () => {
 		expect(msg).toBe("chore: add mirror at 2025-06-15");
 		expect(authorDate).toContain("2025-06-15");
 		expect(committerDate).toContain("2025-06-15");
+	});
+
+	it("should set author email and name when provided", async () => {
+		tempDir = await mkdtemp(join(tmpdir(), "mirror-git-"));
+		const repoPath = join(tempDir, "test-repo");
+		await initMirrorRepo(repoPath);
+
+		await createEmptyCommit(
+			repoPath,
+			"2025-06-15T14:30:00Z",
+			"personal@example.com",
+			"personal-user",
+		);
+
+		const { stdout: log } = await exec(
+			"git",
+			["log", "-1", "--format=%ae|%an|%ce|%cn"],
+			{ cwd: repoPath },
+		);
+		const [authorEmail, authorName, committerEmail, committerName] = log
+			.trim()
+			.split("|");
+		expect(authorEmail).toBe("personal@example.com");
+		expect(authorName).toBe("personal-user");
+		expect(committerEmail).toBe("personal@example.com");
+		expect(committerName).toBe("personal-user");
 	});
 });
 

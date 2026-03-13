@@ -1,6 +1,22 @@
 @import "tailwindcss";
 
 @theme {
+	--color-bg: #fafafa;
+	--color-card: #ffffff;
+	--color-card-hover: #f5f5f5;
+	--color-border: #e5e5e5;
+	--color-border-focus: #a3a3a3;
+	--color-text: #0a0a0a;
+	--color-text-muted: #525252;
+	--color-text-dim: #a3a3a3;
+	--color-primary: #16a34a;
+	--color-primary-dim: #bbf7d0;
+	--color-danger: #dc2626;
+	--color-warning: #ca8a04;
+	--color-info: #2563eb;
+}
+
+html.dark {
 	--color-bg: #0a0a0a;
 	--color-card: #141414;
 	--color-card-hover: #1a1a1a;

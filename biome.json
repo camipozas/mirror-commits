@@ -1,5 +1,8 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
+	"files": {
+		"includes": ["**", "!.next", "!node_modules", "!dist", "!work-mirror"]
+	},
 	"assist": {
 		"actions": {
 			"source": {

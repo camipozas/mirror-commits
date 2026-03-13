@@ -19,11 +19,12 @@ export function registerInitTool(server: McpServer): void {
 			description:
 				"One-time setup: verify gh auth for both accounts, create mirror repo on personal GitHub",
 			inputSchema: {
-				workOrg: z.string().default("Euronet-RiaDigital-Product"),
-				workEmails: z.string().default("cpozas@riamoneytransfer.com"),
-				workGhUser: z.string().default("CPozas_euronet"),
-				personalAccount: z.string().default("camipozas"),
+				workOrg: z.string().default(""),
+				workEmails: z.string().default(""),
+				workGhUser: z.string().default(""),
+				personalAccount: z.string().default(""),
 				mirrorRepoName: z.string().default("work-mirror"),
+				personalEmail: z.string().default(""),
 			},
 		},
 		async ({
@@ -32,6 +33,7 @@ export function registerInitTool(server: McpServer): void {
 			workGhUser,
 			personalAccount,
 			mirrorRepoName,
+			personalEmail,
 		}) => {
 			const result = await init({
 				workOrg,
@@ -39,6 +41,7 @@ export function registerInitTool(server: McpServer): void {
 				workGhUser,
 				personalAccount,
 				mirrorRepoName,
+				personalEmail,
 			});
 			return { content: [{ type: "text" as const, text: result }] };
 		},

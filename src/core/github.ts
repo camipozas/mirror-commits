@@ -134,6 +134,57 @@ export interface CommitSource {
  * ```
  */
 export class GhCommitSource implements CommitSource {
+	/**
+	 * Run a single date-bounded search query and return all paginated results.
+	 * GitHub Search API caps at 1000 results per query, so callers should
+	 * partition by year when totals may exceed that limit.
+	 */
+	private async searchRange(
+		org: string,
+		email: string,
+		dateFilter: string,
+	): Promise<CommitInfo[]> {
+		const commits: CommitInfo[] = [];
+		const query = `org:${org} author-email:${email} ${dateFilter}`;
+		let page = 1;
+		const perPage = 100;
+
+		while (true) {
+			const result = await gh([
+				"api",
+				"search/commits",
+				"-X",
+				"GET",
+				"-f",
+				`q=${query}`,
+				"-f",
+				`per_page=${perPage}`,
+				"-f",
+				`page=${page}`,
+				"-H",
+				"Accept: application/vnd.github.cloak-preview+json",
+			]);
+
+			const parsed = JSON.parse(result);
+			const items = parsed.items ?? [];
+
+			for (const item of items) {
+				const date = item.commit?.committer?.date ?? item.commit?.author?.date;
+				const repo = item.repository?.full_name ?? "unknown";
+				if (date) {
+					commits.push({ date, repo });
+				}
+			}
+
+			if (items.length < perPage || commits.length >= parsed.total_count) {
+				break;
+			}
+			page++;
+		}
+
+		return commits;
+	}
+
 	/** {@inheritDoc CommitSource.searchCommits} */
 	async searchCommits(
 		org: string,
@@ -143,46 +194,30 @@ export class GhCommitSource implements CommitSource {
 		const commits: CommitInfo[] = [];
 
 		for (const email of emails) {
-			let query = `org:${org} author-email:${email}`;
 			if (since) {
-				query += ` committer-date:>${since}`;
-			}
+				// Incremental sync: single query with date filter
+				const results = await this.searchRange(
+					org,
+					email,
+					`committer-date:>${since}`,
+				);
+				commits.push(...results);
+			} else {
+				// Full sync: partition by year to avoid the 1000-result API limit.
+				// First, do a quick count query to see if we even need partitioning.
+				const probe = await this.searchRange(org, email, "");
 
-			let page = 1;
-			const perPage = 100;
-
-			while (true) {
-				const result = await gh([
-					"api",
-					"search/commits",
-					"-X",
-					"GET",
-					"-f",
-					`q=${query}`,
-					"-f",
-					`per_page=${perPage}`,
-					"-f",
-					`page=${page}`,
-					"-H",
-					"Accept: application/vnd.github.cloak-preview+json",
-				]);
-
-				const parsed = JSON.parse(result);
-				const items = parsed.items ?? [];
-
-				for (const item of items) {
-					const date =
-						item.commit?.committer?.date ?? item.commit?.author?.date;
-					const repo = item.repository?.full_name ?? "unknown";
-					if (date) {
-						commits.push({ date, repo });
+				if (probe.length < 1000) {
+					commits.push(...probe);
+				} else {
+					// Partition by year from 2008 (GitHub's founding) to current year
+					const currentYear = new Date().getFullYear();
+					for (let year = 2008; year <= currentYear; year++) {
+						const dateFilter = `committer-date:${year}-01-01..${year}-12-31`;
+						const yearCommits = await this.searchRange(org, email, dateFilter);
+						commits.push(...yearCommits);
 					}
 				}
-
-				if (items.length < perPage || commits.length >= parsed.total_count) {
-					break;
-				}
-				page++;
 			}
 		}
 
