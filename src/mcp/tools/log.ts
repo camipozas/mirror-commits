@@ -6,8 +6,8 @@ import { LOG_FILE } from "@/src/lib/constants";
 /**
  * Register the `mirror_log` tool on the given MCP server.
  *
- * @description Shows recent sync log entries. Reads the last N lines of the
- * log file written by the launchd agent and manual sync runs.
+ * @description Shows recent sync log entries. Only available in local mode
+ * (reads from the filesystem log file written by launchd/manual syncs).
  *
  * @param server - The MCP server instance to register the tool on.
  */
@@ -16,7 +16,8 @@ export function registerLogTool(server: McpServer): void {
 		"mirror_log",
 		{
 			title: "Mirror Log",
-			description: "Show recent sync log entries from the mirror log file",
+			description:
+				"Show recent sync log entries from the mirror log file (local-only)",
 			inputSchema: {
 				lines: z.number().min(1).max(500).default(50),
 			},

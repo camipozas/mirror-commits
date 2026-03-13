@@ -1,23 +1,22 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v4";
-import { init } from "@/src/core/init";
+import { InitRunner } from "@/src/core/init";
+import { SyncRunner } from "@/src/core/sync";
+import type { MirrorDeps } from "@/src/mcp/deps";
 
 /**
  * Register the `mirror_init` tool on the given MCP server.
  *
- * @description Performs one-time mirror-commits setup: verifies `gh` auth for
- * both accounts, creates the personal mirror repository if it doesn't exist,
- * initialises the local git repo, and writes `mirror.config.json`.
- *
  * @param server - The MCP server instance to register the tool on.
+ * @param deps - Injected dependencies (local or remote implementations).
  */
-export function registerInitTool(server: McpServer): void {
+export function registerInitTool(server: McpServer, deps: MirrorDeps): void {
 	server.registerTool(
 		"mirror_init",
 		{
 			title: "Mirror Init",
 			description:
-				"One-time setup: verify gh auth for both accounts, create mirror repo on personal GitHub",
+				"One-time setup: verify auth, create mirror repo on personal GitHub, and run initial sync",
 			inputSchema: {
 				workOrg: z.string().default(""),
 				workEmails: z.string().default(""),
@@ -35,7 +34,22 @@ export function registerInitTool(server: McpServer): void {
 			mirrorRepoName,
 			personalEmail,
 		}) => {
-			const result = await init({
+			const runner = new InitRunner({
+				gitOps: deps.gitOps,
+				accountManager: deps.accountManager,
+				repoManager: deps.repoManager,
+				stateStore: deps.stateStore,
+				syncFn: (opts) =>
+					new SyncRunner({
+						configLoader: deps.configLoader,
+						stateStore: deps.stateStore,
+						commitSource: deps.commitSource,
+						accountManager: deps.accountManager,
+						gitOps: deps.gitOps,
+					}).run(opts),
+			});
+
+			const result = await runner.run({
 				workOrg,
 				workEmails: workEmails.split(",").map((e) => e.trim()),
 				workGhUser,
@@ -43,6 +57,7 @@ export function registerInitTool(server: McpServer): void {
 				mirrorRepoName,
 				personalEmail,
 			});
+
 			return { content: [{ type: "text" as const, text: result }] };
 		},
 	);

@@ -1,4 +1,11 @@
-import { Clock, GitBranch, Github, Shield, Terminal, Zap } from "lucide-react";
+import {
+	Clock,
+	Cloud,
+	GitBranch,
+	Github,
+	Shield,
+	Terminal,
+} from "lucide-react";
 import { ConfigForm } from "@/components/config-form";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -34,8 +41,8 @@ export default function Home() {
 
 				<div className="grid grid-cols-3 gap-3">
 					{[
-						{ icon: Shield, label: "No tokens stored" },
-						{ icon: Zap, label: "No code cloned" },
+						{ icon: Shield, label: "No code cloned" },
+						{ icon: Cloud, label: "No tokens stored" },
 						{ icon: Clock, label: "Daily auto-sync" },
 					].map((f) => (
 						<div
@@ -67,11 +74,37 @@ export default function Home() {
 				</div>
 			</section>
 
-			{/* Quick start */}
-			<section className="rounded-lg border border-border bg-card p-6 space-y-4">
-				<h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">
-					Quick start
-				</h2>
+			{/* MCP Server */}
+			<section className="space-y-4">
+				<div className="flex items-center gap-2">
+					<Cloud size={16} className="text-primary" />
+					<h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">
+						MCP Server (remote)
+					</h2>
+				</div>
+				<p className="text-xs text-text-dim leading-relaxed">
+					Hosted on Vercel — no local install needed. Configure your MCP client
+					with GitHub PATs in headers. Works with Claude Code, Cursor, or any
+					MCP client.
+				</p>
+				<ConfigForm />
+			</section>
+
+			{/* CLI */}
+			<section className="rounded-lg border border-border bg-card p-6 space-y-5">
+				<div className="flex items-center gap-2">
+					<Terminal size={16} className="text-primary" />
+					<h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">
+						CLI (local)
+					</h2>
+				</div>
+
+				<p className="text-xs text-text-dim leading-relaxed">
+					Run everything locally via the CLI. Uses the{" "}
+					<code className="text-primary/70">gh</code> CLI and{" "}
+					<code className="text-primary/70">git</code> — no MCP config needed.
+				</p>
+
 				<div className="space-y-3">
 					{[
 						{
@@ -106,68 +139,16 @@ export default function Home() {
 						</div>
 					))}
 				</div>
-			</section>
 
-			{/* CLI Usage */}
-			<section className="rounded-lg border border-border bg-card p-6 space-y-4">
-				<div className="flex items-center gap-2">
-					<Terminal size={16} className="text-primary" />
-					<h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">
-						CLI Usage
-					</h2>
-				</div>
-				<div className="space-y-3">
+				<div className="border-t border-border pt-4 space-y-2">
+					<p className="text-xs font-medium text-text">Command reference</p>
 					<pre className="text-[11px] text-primary/70 bg-bg rounded px-3 py-2 overflow-x-auto whitespace-pre">
 						{`pnpm mirror sync            # incremental sync
 pnpm mirror sync --full     # full re-sync
 pnpm mirror sync --dry-run  # preview without pushing
 pnpm mirror status          # show sync stats`}
 					</pre>
-					<div className="space-y-1">
-						<p className="text-xs font-medium text-text">
-							Global alias (optional)
-						</p>
-						<p className="text-xs text-text-dim">
-							Run from anywhere without <code>cd</code> into the repo:
-						</p>
-						<pre className="text-[11px] text-primary/70 bg-bg rounded px-3 py-2 mt-1 overflow-x-auto whitespace-pre">
-							{`# add to ~/.zshrc
-alias mirror='~/path/to/mirror-commits/bin/mirror'
-
-# then use the shorthand
-mirror sync
-mirror status`}
-						</pre>
-					</div>
 				</div>
-			</section>
-
-			{/* Config generator */}
-			<ConfigForm />
-
-			{/* MCP Server */}
-			<section className="rounded-lg border border-border bg-card p-6 space-y-4">
-				<div className="flex items-center gap-2">
-					<Terminal size={16} className="text-primary" />
-					<h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">
-						MCP Server
-					</h2>
-				</div>
-				<p className="text-xs text-text-muted leading-relaxed">
-					Exposes 7 tools (<code className="text-primary/70">mirror_init</code>,{" "}
-					<code className="text-primary/70">mirror_sync</code>,{" "}
-					<code className="text-primary/70">mirror_status</code>, and more) for
-					Claude Code or any MCP-compatible client. Add to{" "}
-					<code className="text-primary/70">~/.claude.json</code> and restart:
-				</p>
-				<pre className="text-[11px] text-primary/70 bg-bg rounded px-3 py-2 overflow-x-auto whitespace-pre">
-					{`"mirror-commits": {
-  "type": "stdio",
-  "command": "/bin/bash",
-  "args": ["-c", "cd ~/path/to/mirror-commits && npx tsx src/mcp/index.ts"],
-  "env": { "PATH": "/usr/local/bin:/usr/bin:/bin" }
-}`}
-				</pre>
 			</section>
 
 			<footer className="text-center text-xs text-text-dim pt-6 border-t border-border space-y-2">

@@ -1,16 +1,13 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { loadConfig } from "@/src/core/config";
-import { loadState } from "@/src/core/state";
+import type { MirrorDeps } from "@/src/mcp/deps";
 
 /**
  * Register the `mirror_status` tool on the given MCP server.
  *
- * @description Returns the last sync time, total mirrored commit count,
- * mirror repo path, and all config values from `mirror.config.json`.
- *
  * @param server - The MCP server instance to register the tool on.
+ * @param deps - Injected dependencies (local or remote implementations).
  */
-export function registerStatusTool(server: McpServer): void {
+export function registerStatusTool(server: McpServer, deps: MirrorDeps): void {
 	server.registerTool(
 		"mirror_status",
 		{
@@ -19,7 +16,7 @@ export function registerStatusTool(server: McpServer): void {
 			inputSchema: {},
 		},
 		async () => {
-			const state = await loadState();
+			const state = await deps.stateStore.load();
 			const lines = [
 				"## Mirror Status",
 				`Last synced: ${state.lastSyncedAt ?? "never"}`,
@@ -28,7 +25,7 @@ export function registerStatusTool(server: McpServer): void {
 			];
 
 			try {
-				const config = await loadConfig();
+				const config = await deps.configLoader.load();
 				lines.push(
 					"",
 					"## Config",

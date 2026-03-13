@@ -10,9 +10,9 @@ import {
 /**
  * Register the `mirror_schedule` tool on the given MCP server.
  *
- * @description Manages the macOS launchd daily sync schedule. Supports three
- * actions: `install` (write plist and load agent), `remove` (unload and delete),
- * and `status` (check whether the schedule is active).
+ * @description Manages the macOS launchd daily sync schedule (local-only).
+ * Supports three actions: `install` (write plist and load agent), `remove`
+ * (unload and delete), and `status` (check whether the schedule is active).
  *
  * @param server - The MCP server instance to register the tool on.
  */
