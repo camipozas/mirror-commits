@@ -105,6 +105,13 @@ export class SystemGitOperations implements GitOperations {
 		await mkdir(repoPath, { recursive: true });
 		await git(["init"], repoPath);
 
+		// Ensure the repo has a git identity (CI runners may not have one)
+		await git(
+			["config", "user.email", "mirror-commits@noreply.github.com"],
+			repoPath,
+		);
+		await git(["config", "user.name", "mirror-commits"], repoPath);
+
 		// Switch to main branch (create if new, checkout if exists)
 		try {
 			await git(["checkout", "-b", "main"], repoPath);
