@@ -8,6 +8,7 @@ describe("configSchema", () => {
 		workGhUser: "CPozas_euronet",
 		personalAccount: "camipozas",
 		mirrorRepoName: "work-mirror",
+		personalEmail: "cpozasg1103@gmail.com",
 	};
 
 	it("parses a valid config", () => {
@@ -43,6 +44,17 @@ describe("configSchema", () => {
 
 	it("rejects empty workOrg", () => {
 		expect(() => configSchema.parse({ ...validConfig, workOrg: "" })).toThrow();
+	});
+
+	it("should reject missing personalEmail", () => {
+		const { personalEmail, ...rest } = validConfig;
+		expect(() => configSchema.parse(rest)).toThrow();
+	});
+
+	it("should reject invalid personalEmail", () => {
+		expect(() =>
+			configSchema.parse({ ...validConfig, personalEmail: "not-an-email" }),
+		).toThrow();
 	});
 });
 

@@ -22,6 +22,7 @@ describe("loadConfig", () => {
 				workGhUser: "work-user",
 				personalAccount: "personal-user",
 				mirrorRepoName: "mirror",
+				personalEmail: "personal@example.com",
 			}),
 		);
 		const config = await loadConfig(configPath);

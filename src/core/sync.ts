@@ -127,8 +127,9 @@ export class SyncRunner {
 			initMirrorRepo: (repoPath) => initMirrorRepo(repoPath),
 			addRemote: (repoPath, url) => addRemote(repoPath, url),
 			commitCount: (repoPath) => commitCount(repoPath),
-			createEmptyCommit: (repoPath, date) => createEmptyCommit(repoPath, date),
-			push: (repoPath) => push(repoPath),
+			createEmptyCommit: (repoPath, date, email, name) =>
+				createEmptyCommit(repoPath, date, email, name),
+			push: (repoPath, force) => push(repoPath, force),
 		};
 
 		this.deps = {
@@ -208,9 +209,16 @@ export class SyncRunner {
 			};
 		}
 
-		// Write empty commits backdated to each work commit's date
+		// Write empty commits backdated to each work commit's date,
+		// explicitly setting the personal email so GitHub counts them
+		// on the contribution graph of the personal account.
 		for (const c of filtered) {
-			await gitOps.createEmptyCommit(state.mirrorRepoPath, c.date);
+			await gitOps.createEmptyCommit(
+				state.mirrorRepoPath,
+				c.date,
+				config.personalEmail,
+				config.personalAccount,
+			);
 		}
 
 		if (filtered.length > 0) {

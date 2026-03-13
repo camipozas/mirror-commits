@@ -66,6 +66,7 @@ describe("sync", () => {
 				workGhUser: "work-user",
 				personalAccount: "personal-user",
 				mirrorRepoName: "mirror",
+				personalEmail: "personal@example.com",
 			}),
 		);
 
@@ -98,6 +99,7 @@ describe("sync", () => {
 				workGhUser: "work-user",
 				personalAccount: "personal-user",
 				mirrorRepoName: "mirror",
+				personalEmail: "personal@example.com",
 			}),
 		);
 
@@ -137,6 +139,7 @@ describe("sync", () => {
 				workGhUser: "work-user",
 				personalAccount: "personal-user",
 				mirrorRepoName: "mirror",
+				personalEmail: "personal@example.com",
 			}),
 		);
 
@@ -175,6 +178,7 @@ describe("sync", () => {
 				personalAccount: "personal-user",
 				mirrorRepoName: "mirror",
 				excludeRepos: ["test-org/secret-repo"],
+				personalEmail: "personal@example.com",
 			}),
 		);
 

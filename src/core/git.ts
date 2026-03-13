@@ -58,19 +58,27 @@ export interface GitOperations {
 	 *
 	 * @param repoPath - Absolute path to the local repository.
 	 * @param date - ISO 8601 date string used for both author and committer dates.
+	 * @param authorEmail - Email to set as GIT_AUTHOR_EMAIL and GIT_COMMITTER_EMAIL.
+	 * @param authorName - Name to set as GIT_AUTHOR_NAME and GIT_COMMITTER_NAME.
 	 * @returns A promise that resolves when the commit is created.
 	 * @throws If the git commit fails.
 	 */
-	createEmptyCommit(repoPath: string, date: string): Promise<void>;
+	createEmptyCommit(
+		repoPath: string,
+		date: string,
+		authorEmail?: string,
+		authorName?: string,
+	): Promise<void>;
 
 	/**
-	 * Force-push the local `main` branch to `origin`.
+	 * Push the local `main` branch to `origin`.
 	 *
 	 * @param repoPath - Absolute path to the local repository.
+	 * @param force - When true, force-push.
 	 * @returns A promise that resolves when the push completes.
 	 * @throws If the push fails.
 	 */
-	push(repoPath: string): Promise<void>;
+	push(repoPath: string, force?: boolean): Promise<void>;
 
 	/**
 	 * Count the number of commits reachable from HEAD.
@@ -96,7 +104,14 @@ export class SystemGitOperations implements GitOperations {
 	async initMirrorRepo(repoPath: string): Promise<void> {
 		await mkdir(repoPath, { recursive: true });
 		await git(["init"], repoPath);
-		await git(["checkout", "-b", "main"], repoPath);
+
+		// Switch to main branch (create if new, checkout if exists)
+		try {
+			await git(["checkout", "-b", "main"], repoPath);
+		} catch {
+			await git(["checkout", "main"], repoPath);
+			return; // Already initialized — skip README commit
+		}
 
 		const readmePath = `${repoPath}/README.md`;
 		await writeFile(
@@ -117,20 +132,38 @@ export class SystemGitOperations implements GitOperations {
 	}
 
 	/** {@inheritDoc GitOperations.createEmptyCommit} */
-	async createEmptyCommit(repoPath: string, date: string): Promise<void> {
+	async createEmptyCommit(
+		repoPath: string,
+		date: string,
+		authorEmail?: string,
+		authorName?: string,
+	): Promise<void> {
 		const isoDate = new Date(date).toISOString();
 		const dateStr = isoDate.split("T")[0];
 		const msg = `${DEFAULT_COMMIT_MSG} at ${dateStr}`;
 
-		await git(["commit", "--allow-empty", "-m", msg], repoPath, {
+		const env: Record<string, string> = {
 			GIT_AUTHOR_DATE: isoDate,
 			GIT_COMMITTER_DATE: isoDate,
-		});
+		};
+
+		if (authorEmail) {
+			env.GIT_AUTHOR_EMAIL = authorEmail;
+			env.GIT_COMMITTER_EMAIL = authorEmail;
+		}
+		if (authorName) {
+			env.GIT_AUTHOR_NAME = authorName;
+			env.GIT_COMMITTER_NAME = authorName;
+		}
+
+		await git(["commit", "--allow-empty", "-m", msg], repoPath, env);
 	}
 
 	/** {@inheritDoc GitOperations.push} */
-	async push(repoPath: string): Promise<void> {
-		await git(["push", "-u", "origin", "main"], repoPath);
+	async push(repoPath: string, force = false): Promise<void> {
+		const args = ["push", "-u", "origin", "main"];
+		if (force) args.splice(1, 0, "--force");
+		await git(args, repoPath);
 	}
 
 	/** {@inheritDoc GitOperations.commitCount} */
@@ -182,17 +215,21 @@ export async function addRemote(
  *
  * @param repoPath - Absolute path to the local repository.
  * @param date - ISO 8601 date string for `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE`.
- *
- * @example
- * ```ts
- * await createEmptyCommit("/tmp/my-mirror", "2024-06-15T12:00:00.000Z");
- * ```
+ * @param authorEmail - Optional email to override GIT_AUTHOR_EMAIL / GIT_COMMITTER_EMAIL.
+ * @param authorName - Optional name to override GIT_AUTHOR_NAME / GIT_COMMITTER_NAME.
  */
 export async function createEmptyCommit(
 	repoPath: string,
 	date: string,
+	authorEmail?: string,
+	authorName?: string,
 ): Promise<void> {
-	return new SystemGitOperations().createEmptyCommit(repoPath, date);
+	return new SystemGitOperations().createEmptyCommit(
+		repoPath,
+		date,
+		authorEmail,
+		authorName,
+	);
 }
 
 /**
@@ -205,8 +242,8 @@ export async function createEmptyCommit(
  * await push("/tmp/my-mirror");
  * ```
  */
-export async function push(repoPath: string): Promise<void> {
-	return new SystemGitOperations().push(repoPath);
+export async function push(repoPath: string, force = false): Promise<void> {
+	return new SystemGitOperations().push(repoPath, force);
 }
 
 /**

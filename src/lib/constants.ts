@@ -3,9 +3,16 @@ import { join } from "node:path";
 
 /**
  * Root directory for all mirror-commits runtime state files.
- * Located at `~/.local/share/mirror-commits`.
+ * Located at `~/Documents/other/mirror-commits` so that the git conditional
+ * include (`[includeIf "gitdir:~/Documents/other/"]`) automatically sets the
+ * personal email on the nested `work-mirror` repository.
  */
-export const STATE_DIR = join(homedir(), ".local", "share", "mirror-commits");
+export const STATE_DIR = join(
+	homedir(),
+	"Documents",
+	"other",
+	"mirror-commits",
+);
 
 /**
  * Absolute path to the JSON file that persists sync state between runs.
@@ -31,7 +38,7 @@ export const DEFAULT_COMMIT_MSG = "chore: add mirror";
 /**
  * Reverse-DNS label used to identify the launchd agent on macOS.
  */
-export const LAUNCHD_LABEL = "com.camipozas.mirror-commits";
+export const LAUNCHD_LABEL = "com.mirror-commits";
 
 /**
  * Absolute path to the launchd plist file installed in `~/Library/LaunchAgents`.

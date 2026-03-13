@@ -28,6 +28,8 @@ export const configSchema = z.object({
 	mirrorRepoName: z.string().min(1),
 	/** Full repo names (org/repo) to exclude from mirroring. Defaults to `[]`. */
 	excludeRepos: z.array(z.string()).optional().default([]),
+	/** Personal email used as author/committer on mirror commits so they count on the contribution graph. */
+	personalEmail: z.email(),
 });
 
 /**
