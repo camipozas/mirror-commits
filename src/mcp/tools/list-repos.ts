@@ -1,18 +1,17 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v4";
-import { loadConfig } from "@/src/core/config";
-import { listOrgRepos } from "@/src/core/github";
+import type { MirrorDeps } from "@/src/mcp/deps";
 
 /**
  * Register the `mirror_list_repos` tool on the given MCP server.
  *
- * @description Lists all repositories in the work org. Useful for discovering
- * repo names to add to `excludeRepos` in the config. Falls back to the
- * configured `workOrg` when no explicit org is provided.
- *
  * @param server - The MCP server instance to register the tool on.
+ * @param deps - Injected dependencies (local or remote implementations).
  */
-export function registerListReposTool(server: McpServer): void {
+export function registerListReposTool(
+	server: McpServer,
+	deps: MirrorDeps,
+): void {
 	server.registerTool(
 		"mirror_list_repos",
 		{
@@ -28,7 +27,7 @@ export function registerListReposTool(server: McpServer): void {
 
 			if (!targetOrg) {
 				try {
-					const config = await loadConfig();
+					const config = await deps.configLoader.load();
 					targetOrg = config.workOrg;
 				} catch {
 					return {
@@ -42,7 +41,7 @@ export function registerListReposTool(server: McpServer): void {
 				}
 			}
 
-			const repos = await listOrgRepos(targetOrg);
+			const repos = await deps.commitSource.listOrgRepos(targetOrg);
 			const lines = [
 				`## Repositories in ${targetOrg} (${repos.length} total)`,
 				"",

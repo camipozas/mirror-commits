@@ -1,17 +1,15 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v4";
-import { sync } from "@/src/core/sync";
+import { SyncRunner } from "@/src/core/sync";
+import type { MirrorDeps } from "@/src/mcp/deps";
 
 /**
  * Register the `mirror_sync` tool on the given MCP server.
  *
- * @description Syncs work commits to the personal mirror repo. Fetches commits
- * from the work org, excludes configured repos, creates backdated empty commits,
- * and pushes to GitHub. Incremental by default using the stored cursor.
- *
  * @param server - The MCP server instance to register the tool on.
+ * @param deps - Injected dependencies (local or remote implementations).
  */
-export function registerSyncTool(server: McpServer): void {
+export function registerSyncTool(server: McpServer, deps: MirrorDeps): void {
 	server.registerTool(
 		"mirror_sync",
 		{
@@ -25,7 +23,15 @@ export function registerSyncTool(server: McpServer): void {
 			},
 		},
 		async ({ full, dryRun, since }) => {
-			const result = await sync({ full, dryRun, since });
+			const runner = new SyncRunner({
+				configLoader: deps.configLoader,
+				stateStore: deps.stateStore,
+				commitSource: deps.commitSource,
+				accountManager: deps.accountManager,
+				gitOps: deps.gitOps,
+			});
+
+			const result = await runner.run({ full, dryRun, since });
 			const lines = [
 				`Commits found: ${result.commitsFound}`,
 				`Commits mirrored: ${result.commitsMirrored}`,
