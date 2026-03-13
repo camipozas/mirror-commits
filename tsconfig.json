@@ -28,6 +28,7 @@
 	"include": [
 		"src/**/*.ts",
 		"src/__tests__/**/*.ts",
+		"app/**/*.ts",
 		"app/**/*.tsx",
 		"components/**/*.tsx",
 		"next-env.d.ts",
@@ -35,5 +36,5 @@
 		".next/types/**/*.ts",
 		".next/dev/types/**/*.ts"
 	],
-	"exclude": ["node_modules", "dist"]
+	"exclude": ["node_modules", "dist", "src/mcp/index.ts"]
 }
