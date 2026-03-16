@@ -22,7 +22,7 @@ export function registerScheduleTool(server: McpServer): void {
 		{
 			title: "Mirror Schedule",
 			description:
-				"Install, remove, or check status of daily launchd sync schedule",
+				"Install, remove, or check status of the daily macOS launchd sync schedule. Local-only — not available in remote mode. macOS only (uses launchd).",
 			inputSchema: {
 				action: z.enum(["install", "remove", "status"]),
 				hour: z.number().min(0).max(23).default(22),

@@ -17,6 +17,22 @@ import {
 import { loadState } from "@/src/core/state";
 import { sync } from "@/src/core/sync";
 
+/**
+ * Format a duration between two dates into a human-readable string.
+ *
+ * @param from - ISO date string of the earlier date.
+ * @returns A relative time string like "2h ago" or "3d ago".
+ */
+function timeSince(from: string): string {
+	const ms = Date.now() - new Date(from).getTime();
+	const mins = Math.floor(ms / 60_000);
+	if (mins < 60) return `${mins}m ago`;
+	const hours = Math.floor(mins / 60);
+	if (hours < 24) return `${hours}h ago`;
+	const days = Math.floor(hours / 24);
+	return `${days}d ago`;
+}
+
 const program = new Command();
 
 program
@@ -142,8 +158,12 @@ program
 	.action(async () => {
 		try {
 			const state = await loadState();
+			const lastSyncDisplay = state.lastSyncedAt
+				? `${state.lastSyncedAt} (${timeSince(state.lastSyncedAt)})`
+				: "never";
+
 			console.log(chalk.bold("Mirror Status"));
-			console.log(`  Last synced: ${state.lastSyncedAt ?? "never"}`);
+			console.log(`  Last synced: ${lastSyncDisplay}`);
 			console.log(`  Total mirrored: ${state.totalCommitsMirrored}`);
 			console.log(`  Mirror repo: ${state.mirrorRepoPath || "not set"}`);
 
@@ -154,11 +174,20 @@ program
 				console.log(`  Work user: ${config.workGhUser}`);
 				console.log(`  Personal: ${config.personalAccount}`);
 				console.log(`  Mirror repo: ${config.mirrorRepoName}`);
+				console.log(`  Work emails: ${config.workEmails.join(", ")}`);
 				console.log(`  Excluded: ${config.excludeRepos?.join(", ") || "none"}`);
 			} catch {
 				console.log(
 					chalk.yellow("\nNo config found. Run `mirror init` first."),
 				);
+			}
+
+			try {
+				const schedule = await scheduleStatus();
+				console.log(chalk.bold("\nSchedule"));
+				console.log(`  ${schedule}`);
+			} catch {
+				// Schedule check is non-critical
 			}
 		} catch (err) {
 			console.error(chalk.red(`Status failed: ${err}`));

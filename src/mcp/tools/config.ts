@@ -22,7 +22,7 @@ export function registerConfigTool(server: McpServer, deps: MirrorDeps): void {
 		{
 			title: "Mirror Config",
 			description:
-				"Show or update the current mirror config. Pass excludeRepos to update the exclusion list.",
+				"Show or update the current mirror config. Pass `excludeRepos` to update the exclusion list. Requires `mirror_init` to be run first. Config updates are not supported in remote mode.",
 			inputSchema: {
 				excludeRepos: z.array(z.string()).optional(),
 			},

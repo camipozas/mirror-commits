@@ -1,20 +1,11 @@
 import chalk from "chalk";
 import { type ConfigLoader, FileConfigLoader } from "@/src/core/config";
-import {
-	addRemote,
-	commitCount,
-	createEmptyCommit,
-	type GitOperations,
-	initMirrorRepo,
-	push,
-} from "@/src/core/git";
+import { type GitOperations, SystemGitOperations } from "@/src/core/git";
 import {
 	type AccountManager,
 	type CommitSource,
-	currentAccount,
-	listOrgRepos,
-	searchCommits,
-	switchAccount,
+	GhAccountManager,
+	GhCommitSource,
 } from "@/src/core/github";
 import { FileStateStore, type StateStore } from "@/src/core/state";
 
@@ -52,6 +43,16 @@ export interface SyncOptions {
 }
 
 /**
+ * Per-repository commit breakdown included in sync results.
+ */
+export interface RepoBreakdown {
+	/** Full repository name in `owner/repo` format. */
+	repo: string;
+	/** Number of commits from this repository. */
+	count: number;
+}
+
+/**
  * Summary returned by {@link sync} after a run completes.
  */
 export interface SyncResult {
@@ -63,6 +64,10 @@ export interface SyncResult {
 	dryRun: boolean;
 	/** The ISO date used as the lower bound for the search, or `null` for full sync. */
 	since: string | null;
+	/** Per-repository breakdown of commits found. */
+	repoBreakdown: RepoBreakdown[];
+	/** Running total of all mirrored commits (including previous syncs). */
+	totalMirrored: number;
 }
 
 /**
@@ -87,6 +92,34 @@ export interface SyncDependencies {
 	gitOps: GitOperations;
 }
 
+/** Maximum number of push retry attempts before giving up. */
+const MAX_PUSH_RETRIES = 2;
+
+/**
+ * Sleep for the given number of milliseconds.
+ *
+ * @param ms - Duration in milliseconds.
+ */
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Build a per-repo breakdown from a list of commits.
+ *
+ * @param commits - Filtered commits to summarise.
+ * @returns Sorted array of {@link RepoBreakdown} entries (highest count first).
+ */
+function buildRepoBreakdown(commits: { repo: string }[]): RepoBreakdown[] {
+	const counts = new Map<string, number>();
+	for (const c of commits) {
+		counts.set(c.repo, (counts.get(c.repo) ?? 0) + 1);
+	}
+	return Array.from(counts.entries())
+		.map(([repo, count]) => ({ repo, count }))
+		.sort((a, b) => b.count - a.count);
+}
+
 /**
  * Orchestrates one mirror sync cycle.
  *
@@ -106,40 +139,16 @@ export class SyncRunner {
 	private readonly deps: SyncDependencies;
 
 	/**
-	 * @param deps - Optional dependency overrides. Production defaults wrap the
-	 *   module-level convenience functions so that vitest module mocks continue
-	 *   to intercept calls made through this class.
+	 * @param deps - Optional dependency overrides. Production defaults
+	 *   instantiate concrete classes directly (no convenience wrappers).
 	 */
 	constructor(deps?: Partial<SyncDependencies>) {
-		// Default implementations delegate entirely to module-level convenience
-		// functions rather than instantiating classes. This means vitest's
-		// vi.mock() continues to intercept these calls even when called through
-		// SyncRunner, without requiring test mocks to export every class.
-		const defaultCommitSource: CommitSource = {
-			searchCommits: (org, emails, since) => searchCommits(org, emails, since),
-			listOrgRepos: (org) => listOrgRepos(org),
-		};
-		const defaultAccountManager: AccountManager = {
-			switchTo: (user) => switchAccount(user),
-			current: () => currentAccount(),
-		};
-		const defaultGitOps: GitOperations = {
-			initMirrorRepo: (repoPath) => initMirrorRepo(repoPath),
-			addRemote: (repoPath, url) => addRemote(repoPath, url),
-			commitCount: (repoPath) => commitCount(repoPath),
-			createEmptyCommit: (repoPath, date, email, name) =>
-				createEmptyCommit(repoPath, date, email, name),
-			push: (repoPath, force) => push(repoPath, force),
-		};
-
 		this.deps = {
-			// configLoader is intentionally NOT defaulted here — it is resolved
-			// at run() time so that options.configPath can be forwarded.
 			configLoader: deps?.configLoader,
 			stateStore: deps?.stateStore ?? new FileStateStore(),
-			commitSource: deps?.commitSource ?? defaultCommitSource,
-			accountManager: deps?.accountManager ?? defaultAccountManager,
-			gitOps: deps?.gitOps ?? defaultGitOps,
+			commitSource: deps?.commitSource ?? new GhCommitSource(),
+			accountManager: deps?.accountManager ?? new GhAccountManager(),
+			gitOps: deps?.gitOps ?? new SystemGitOperations(),
 		};
 	}
 
@@ -154,8 +163,6 @@ export class SyncRunner {
 	async run(options: SyncOptions = {}): Promise<SyncResult> {
 		const { stateStore, commitSource, accountManager, gitOps } = this.deps;
 
-		// Resolve config loader at run-time so options.configPath is honoured
-		// even when no explicit loader was injected at construction.
 		const configLoader =
 			this.deps.configLoader ?? new FileConfigLoader(options.configPath);
 
@@ -176,7 +183,6 @@ export class SyncRunner {
 			),
 		);
 
-		// Use work account to search commits
 		await accountManager.switchTo(config.workGhUser);
 
 		const commits = await commitSource.searchCommits(
@@ -185,16 +191,33 @@ export class SyncRunner {
 			since,
 		);
 
-		// Filter excluded repos
 		const excluded = new Set(config.excludeRepos);
+		for (const repo of excluded) {
+			if (!repo.includes("/")) {
+				console.log(
+					chalk.yellow(
+						`Warning: excludeRepos entry "${repo}" should be in org/repo format`,
+					),
+				);
+			}
+		}
 		const filtered = commits.filter((c) => !excluded.has(c.repo));
 
-		// Sort ascending so commits are written in chronological order
 		filtered.sort(
 			(a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
 		);
 
-		console.log(chalk.blue(`Found ${filtered.length} commits to mirror.`));
+		const repoBreakdown = buildRepoBreakdown(filtered);
+
+		console.log(
+			chalk.blue(
+				`Found ${filtered.length} commits across ${repoBreakdown.length} repos:`,
+			),
+		);
+		for (const { repo, count } of repoBreakdown) {
+			const repoName = repo.includes("/") ? repo.split("/")[1] : repo;
+			console.log(chalk.gray(`  ${repoName}  ${count} commits`));
+		}
 
 		if (options.dryRun) {
 			for (const c of filtered) {
@@ -206,12 +229,11 @@ export class SyncRunner {
 				commitsMirrored: 0,
 				dryRun: true,
 				since: since ?? null,
+				repoBreakdown,
+				totalMirrored: state.totalCommitsMirrored,
 			};
 		}
 
-		// Write empty commits backdated to each work commit's date,
-		// explicitly setting the personal email so GitHub counts them
-		// on the contribution graph of the personal account.
 		for (const c of filtered) {
 			await gitOps.createEmptyCommit(
 				state.mirrorRepoPath,
@@ -222,14 +244,14 @@ export class SyncRunner {
 		}
 
 		if (filtered.length > 0) {
-			// Push with personal account, then restore work account
-			console.log(chalk.blue("Pushing to mirror repo..."));
+			console.log(chalk.blue(`Pushing ${filtered.length} commits...`));
 			await accountManager.switchTo(config.personalAccount);
-			await gitOps.push(state.mirrorRepoPath);
+
+			await this.pushWithRetry(gitOps, state.mirrorRepoPath);
+
 			await accountManager.switchTo(config.workGhUser);
 		}
 
-		// Persist updated state
 		const now = new Date().toISOString();
 		state.lastSyncedAt = now;
 		state.totalCommitsMirrored += filtered.length;
@@ -246,7 +268,43 @@ export class SyncRunner {
 			commitsMirrored: filtered.length,
 			dryRun: false,
 			since: since ?? null,
+			repoBreakdown,
+			totalMirrored: state.totalCommitsMirrored,
 		};
+	}
+
+	/**
+	 * Push with exponential backoff retry.
+	 *
+	 * @param gitOps - Git operations instance.
+	 * @param repoPath - Path to the local mirror repository.
+	 * @throws After all retries are exhausted.
+	 */
+	private async pushWithRetry(
+		gitOps: GitOperations,
+		repoPath: string,
+	): Promise<void> {
+		let lastError: Error | undefined;
+		for (let attempt = 0; attempt <= MAX_PUSH_RETRIES; attempt++) {
+			try {
+				await gitOps.push(repoPath);
+				return;
+			} catch (err) {
+				lastError = err instanceof Error ? err : new Error(String(err));
+				if (attempt < MAX_PUSH_RETRIES) {
+					const delay = 1000 * 2 ** attempt;
+					console.log(
+						chalk.yellow(
+							`Push failed (attempt ${attempt + 1}/${MAX_PUSH_RETRIES + 1}), retrying in ${delay}ms...`,
+						),
+					);
+					await sleep(delay);
+				}
+			}
+		}
+		throw new Error(
+			`Push failed after ${MAX_PUSH_RETRIES + 1} attempts. Commits are written locally but not pushed.\n${lastError?.message}`,
+		);
 	}
 }
 
@@ -256,12 +314,6 @@ export class SyncRunner {
  * @param options - Sync behaviour overrides.
  * @returns A {@link SyncResult} describing the outcome.
  * @throws If the mirror repo is not initialised or an I/O operation fails.
- *
- * @example
- * ```ts
- * const result = await sync({ dryRun: true });
- * console.log(`Would mirror ${result.commitsFound} commits`);
- * ```
  */
 export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
 	return new SyncRunner().run(options);

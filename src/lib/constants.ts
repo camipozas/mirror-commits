@@ -2,12 +2,18 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 /**
- * Root directory for all mirror-commits runtime state files.
- * Located at `~/Documents/other/mirror-commits` so that the git conditional
- * include (`[includeIf "gitdir:~/Documents/other/"]`) automatically sets the
- * personal email on the nested `work-mirror` repository.
+ * XDG-compliant root directory for all mirror-commits runtime state files.
+ * Respects `XDG_DATA_HOME` if set, otherwise defaults to `~/.local/share/mirror-commits`.
  */
-export const STATE_DIR = join(
+const xdgDataHome =
+	process.env.XDG_DATA_HOME || join(homedir(), ".local", "share");
+export const STATE_DIR = join(xdgDataHome, "mirror-commits");
+
+/**
+ * Legacy state directory used before the XDG migration.
+ * Checked once at load time to migrate existing state.
+ */
+export const LEGACY_STATE_DIR = join(
 	homedir(),
 	"Documents",
 	"other",

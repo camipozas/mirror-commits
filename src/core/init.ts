@@ -115,7 +115,6 @@ export async function checkGhAccounts(): Promise<Set<string>> {
 		});
 		return parseGhAuthUsers(stdout + stderr);
 	} catch (err: unknown) {
-		// gh auth status exits non-zero if not logged in, but still prints info
 		if (err && typeof err === "object" && "stderr" in err) {
 			return parseGhAuthUsers(
 				String((err as { stdout?: string }).stdout ?? "") +
@@ -152,6 +151,23 @@ export async function runGhLogin(): Promise<void> {
 		});
 		child.on("error", reject);
 	});
+}
+
+/**
+ * Check that the `gh` CLI is installed.
+ *
+ * @returns `true` if `gh` is available on PATH.
+ */
+async function isGhInstalled(): Promise<boolean> {
+	const { execFile } = await import("node:child_process");
+	const { promisify } = await import("node:util");
+	const exec = promisify(execFile);
+	try {
+		await exec("which", ["gh"]);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 /**
@@ -211,8 +227,17 @@ export class InitRunner {
 		const mirrorRepoPath = join(STATE_DIR, mirrorRepoName);
 		const repoUrl = `https://github.com/${fullRepoName}.git`;
 
+		// Prerequisite: check gh CLI
+		console.log(chalk.blue("\nChecking prerequisites..."));
+		if (await isGhInstalled()) {
+			console.log(chalk.green("  ✓ gh CLI found"));
+		} else {
+			throw new Error(
+				"gh CLI not found. Install it from https://cli.github.com/ and run `gh auth login` for both accounts.",
+			);
+		}
+
 		// Verify work account auth
-		console.log(chalk.blue("\nChecking gh auth..."));
 		const active = await accountManager.current();
 		if (active !== workGhUser) {
 			console.log(
@@ -220,36 +245,30 @@ export class InitRunner {
 			);
 			await accountManager.switchTo(workGhUser);
 		}
-		console.log(chalk.green(`  ✓ Work account (${workGhUser}) verified`));
+		console.log(chalk.green(`  ✓ Work account (${workGhUser}) authenticated`));
+
+		// Verify personal account auth
+		try {
+			await accountManager.switchTo(personalAccount);
+			console.log(
+				chalk.green(`  ✓ Personal account (${personalAccount}) authenticated`),
+			);
+		} catch {
+			throw new Error(
+				`Personal account "${personalAccount}" is not authenticated. Run: gh auth login`,
+			);
+		}
+
+		console.log(
+			chalk.dim(
+				`  Note: ensure ${personalEmail} is verified on your GitHub account`,
+			),
+		);
 
 		// Ensure gh is configured as git credential helper (for HTTPS push)
 		await setupGitCredentialHelper();
 
-		// Check mirror repo
-		console.log(chalk.blue("\nChecking mirror repo..."));
-		await accountManager.switchTo(personalAccount);
-
-		const exists = await repoManager.repoExists(fullRepoName);
-		if (!exists) {
-			console.log(chalk.yellow(`  ✗ ${fullRepoName} doesn't exist`));
-			console.log(chalk.blue("  → Creating private repo..."));
-			await repoManager.createRepo(fullRepoName, false);
-			console.log(chalk.green(`  ✓ Repo created`));
-		} else {
-			console.log(chalk.green(`  ✓ ${fullRepoName} already exists`));
-		}
-
-		// Initialise local mirror repo
-		console.log(chalk.blue("\nInitializing local mirror..."));
-		await gitOps.initMirrorRepo(mirrorRepoPath);
-		await gitOps.addRemote(mirrorRepoPath, repoUrl);
-		await gitOps.push(mirrorRepoPath, true);
-		console.log(chalk.green(`  ✓ Local repo ready at ${mirrorRepoPath}`));
-
-		// Restore work account session
-		await accountManager.switchTo(workGhUser);
-
-		// Write config file
+		// Write config file (before repo operations so sync can find it)
 		const config: Config = {
 			workEmails,
 			workOrg,
@@ -263,11 +282,36 @@ export class InitRunner {
 		await writeFile(configPath, JSON.stringify(config, null, 2));
 		console.log(chalk.green(`  ✓ Config saved to ${configPath}`));
 
+		// Check / create mirror repo
+		console.log(chalk.blue("\nSetting up mirror repo..."));
+		await accountManager.switchTo(personalAccount);
+
+		const exists = await repoManager.repoExists(fullRepoName);
+		if (!exists) {
+			await repoManager.createRepo(fullRepoName, false);
+			console.log(
+				chalk.green(`  ✓ Mirror repo created: ${fullRepoName} (private)`),
+			);
+		} else {
+			console.log(chalk.green(`  ✓ ${fullRepoName} already exists`));
+		}
+
+		// Initialise local mirror repo
+		await gitOps.initMirrorRepo(mirrorRepoPath);
+		await gitOps.addRemote(mirrorRepoPath, repoUrl);
+		await gitOps.push(mirrorRepoPath, true);
+		console.log(
+			chalk.green(`  ✓ Local clone initialized at ${mirrorRepoPath}`),
+		);
+
+		// Restore work account session
+		await accountManager.switchTo(workGhUser);
+
 		// Persist state
 		const state = await stateStore.load();
 		state.mirrorRepoPath = mirrorRepoPath;
 		await stateStore.save(state);
-		console.log(chalk.green(`  ✓ State saved`));
+		console.log(chalk.green("  ✓ State saved"));
 
 		// Auto-run full sync
 		if (autoSync) {
@@ -276,12 +320,10 @@ export class InitRunner {
 		}
 
 		console.log(
-			chalk.green(
-				"\nAll done! Your contribution graph will update within 24h.",
-			),
+			chalk.green("\nDone! Your contribution graph will update within 24h."),
 		);
 		console.log(
-			chalk.dim("To schedule daily auto-sync: pnpm mirror schedule install"),
+			chalk.dim("Next: run `mirror schedule install` for daily auto-sync."),
 		);
 
 		return "Initialized successfully.";

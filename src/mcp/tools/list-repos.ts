@@ -17,7 +17,7 @@ export function registerListReposTool(
 		{
 			title: "Mirror List Repos",
 			description:
-				"List all repos in the work org — useful for discovering what to exclude from mirroring",
+				"List all repos in the work org — useful for discovering what to add to `excludeRepos`. Uses the org from config if not provided. Requires `mirror_init` to be run first (or pass `org` explicitly).",
 			inputSchema: {
 				org: z.string().optional(),
 			},

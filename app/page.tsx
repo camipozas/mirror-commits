@@ -1,4 +1,5 @@
 import {
+	AlertCircle,
 	Clock,
 	Cloud,
 	GitBranch,
@@ -33,17 +34,18 @@ export default function Home() {
 				</div>
 
 				<p className="text-sm text-text-muted leading-relaxed">
-					Your work commits don't show on your personal GitHub profile. This
-					tool reads the <strong>timestamps</strong> of your work commits via
-					the GitHub API and creates matching empty commits on a personal repo —
-					no code is ever copied.
+					If you code at work using an org account, those contributions are
+					invisible on your personal profile. This tool mirrors{" "}
+					<strong>only the timestamps</strong> of your work commits to a private
+					repo on your personal account — your contribution graph lights up, and
+					no source code is ever copied.
 				</p>
 
 				<div className="grid grid-cols-3 gap-3">
 					{[
-						{ icon: Shield, label: "No code cloned" },
+						{ icon: Shield, label: "No code copied" },
 						{ icon: Cloud, label: "No tokens stored" },
-						{ icon: Clock, label: "Daily auto-sync" },
+						{ icon: Clock, label: "Set it & forget it" },
 					].map((f) => (
 						<div
 							key={f.label}
@@ -58,35 +60,132 @@ export default function Home() {
 
 			{/* How it works */}
 			<section className="rounded-lg border border-border bg-card p-6 space-y-4">
-				<h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">
+				<h2 className="text-xs font-semibold text-text-muted uppercase tracking-wide">
 					How it works
 				</h2>
-				<div className="space-y-2 text-sm text-text-muted">
-					<p>1. Searches your work org for commits matching your email</p>
-					<p>
-						2. Creates empty commits with the same timestamps on a private
-						mirror repo
-					</p>
-					<p>
-						3. Pushes to your personal GitHub — contribution graph lights up
-					</p>
-					<p>4. Optional daily auto-sync keeps it up to date</p>
+				<div className="space-y-2 text-xs text-text-muted">
+					<div className="flex gap-2.5 items-start">
+						<span className="shrink-0 w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] flex items-center justify-center font-bold mt-0.5">
+							1
+						</span>
+						<p>
+							<strong className="text-text">Reads</strong> your work org's
+							commit history — only timestamps, never code
+						</p>
+					</div>
+					<div className="flex gap-2.5 items-start">
+						<span className="shrink-0 w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] flex items-center justify-center font-bold mt-0.5">
+							2
+						</span>
+						<p>
+							<strong className="text-text">Creates</strong> empty commits with
+							those timestamps on a private mirror repo
+						</p>
+					</div>
+					<div className="flex gap-2.5 items-start">
+						<span className="shrink-0 w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] flex items-center justify-center font-bold mt-0.5">
+							3
+						</span>
+						<p>
+							<strong className="text-text">Pushes</strong> to your personal
+							GitHub — contribution graph lights up
+						</p>
+					</div>
+					<div className="flex gap-2.5 items-start">
+						<span className="shrink-0 w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] flex items-center justify-center font-bold mt-0.5">
+							4
+						</span>
+						<p>
+							<strong className="text-text">Auto-syncs</strong> daily so you
+							never think about it again
+						</p>
+					</div>
 				</div>
+			</section>
+
+			{/* Prerequisites */}
+			<div className="rounded-md border border-primary/20 bg-primary/5 p-4 space-y-2">
+				<div className="flex items-center gap-2">
+					<AlertCircle size={14} className="text-primary" />
+					<span className="text-xs font-semibold text-text">Prerequisites</span>
+				</div>
+				<ul className="text-xs text-text-dim space-y-1 list-disc list-inside">
+					<li>
+						<code className="text-primary/70">gh</code> CLI installed
+					</li>
+					<li>
+						Two GitHub accounts authenticated (
+						<code className="text-primary/70">gh auth login</code> × 2)
+					</li>
+					<li>Personal email verified on your GitHub account</li>
+				</ul>
+			</div>
+
+			{/* Getting started */}
+			<section className="space-y-2">
+				<h2 className="text-xs font-semibold text-text-muted uppercase tracking-wide">
+					Get started
+				</h2>
+				<p className="text-xs text-text-dim leading-relaxed">
+					First, run <code className="text-primary/70">pnpm mirror init</code>{" "}
+					via the CLI to create your mirror repo and do the initial sync. After
+					that, pick whichever option fits your daily workflow.
+				</p>
 			</section>
 
 			{/* MCP Server */}
 			<section className="space-y-4">
 				<div className="flex items-center gap-2">
 					<Cloud size={16} className="text-primary" />
-					<h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">
-						MCP Server (remote)
+					<h2 className="text-xs font-semibold text-text-muted uppercase tracking-wide">
+						Option A: MCP Server (day-to-day syncs)
 					</h2>
 				</div>
 				<p className="text-xs text-text-dim leading-relaxed">
-					Hosted on Vercel — no local install needed. Configure your MCP client
-					with GitHub PATs in headers. Works with Claude Code, Cursor, or any
-					MCP client.
+					After initial setup via CLI, use the MCP server for ongoing syncs from
+					Claude Code, Cursor, or any MCP-compatible AI tool — no local install
+					needed day-to-day.
 				</p>
+
+				<p className="text-xs text-text-dim">
+					Your AI assistant will have these tools available:
+				</p>
+				<div className="rounded-lg border border-border bg-bg overflow-hidden">
+					<table className="w-full text-xs">
+						<thead>
+							<tr className="border-b border-border">
+								<th className="text-left px-3 py-2 text-text-muted font-semibold">
+									Tool
+								</th>
+								<th className="text-left px-3 py-2 text-text-muted font-semibold">
+									What it does
+								</th>
+							</tr>
+						</thead>
+						<tbody className="text-text-dim">
+							{[
+								[
+									"mirror_sync",
+									"Sync your commits (supports --since, --full, --dry-run)",
+								],
+								["mirror_status", "Check how many commits have been mirrored"],
+								[
+									"mirror_list_repos",
+									"See all repos in your org (handy for choosing what to exclude)",
+								],
+								["mirror_config", "View or update your configuration"],
+							].map(([tool, desc]) => (
+								<tr key={tool} className="border-b border-border last:border-0">
+									<td className="px-3 py-1.5">
+										<code className="text-primary/70">{tool}</code>
+									</td>
+									<td className="px-3 py-1.5">{desc}</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</div>
+
 				<ConfigForm />
 			</section>
 
@@ -94,15 +193,14 @@ export default function Home() {
 			<section className="rounded-lg border border-border bg-card p-6 space-y-5">
 				<div className="flex items-center gap-2">
 					<Terminal size={16} className="text-primary" />
-					<h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">
-						CLI (local)
+					<h2 className="text-xs font-semibold text-text-muted uppercase tracking-wide">
+						Option B: CLI (full local workflow)
 					</h2>
 				</div>
 
 				<p className="text-xs text-text-dim leading-relaxed">
-					Run everything locally via the CLI. Uses the{" "}
-					<code className="text-primary/70">gh</code> CLI and{" "}
-					<code className="text-primary/70">git</code> — no MCP config needed.
+					Prefer to run things yourself? Clone the repo and use the CLI
+					directly. Three commands and you're done.
 				</p>
 
 				<div className="space-y-3">
@@ -143,10 +241,11 @@ export default function Home() {
 				<div className="border-t border-border pt-4 space-y-2">
 					<p className="text-xs font-medium text-text">Command reference</p>
 					<pre className="text-[11px] text-primary/70 bg-bg rounded px-3 py-2 overflow-x-auto whitespace-pre">
-						{`pnpm mirror sync            # incremental sync
-pnpm mirror sync --full     # full re-sync
-pnpm mirror sync --dry-run  # preview without pushing
-pnpm mirror status          # show sync stats`}
+						{`pnpm mirror sync                        # incremental sync
+pnpm mirror sync --full                 # full re-sync
+pnpm mirror sync --dry-run              # preview without pushing
+pnpm mirror sync --since 2025-01-01    	# sync from specific date
+pnpm mirror status                      # show sync stats`}
 					</pre>
 				</div>
 			</section>
