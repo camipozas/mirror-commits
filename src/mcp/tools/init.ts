@@ -16,7 +16,7 @@ export function registerInitTool(server: McpServer, deps: MirrorDeps): void {
 		{
 			title: "Mirror Init",
 			description:
-				"One-time setup: verify auth, create mirror repo on personal GitHub, and run initial sync",
+				"One-time setup: verify gh CLI and auth, create a private mirror repo on personal GitHub, and run initial sync. Requires `gh` CLI with both work and personal accounts authenticated.",
 			inputSchema: {
 				workOrg: z.string().default(""),
 				workEmails: z.string().default(""),

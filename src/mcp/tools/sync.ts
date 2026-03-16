@@ -15,7 +15,7 @@ export function registerSyncTool(server: McpServer, deps: MirrorDeps): void {
 		{
 			title: "Mirror Sync",
 			description:
-				"Sync work commits to personal mirror repo (incremental by default)",
+				"Sync work commits to personal mirror repo. Requires `mirror_init` to be run first. Incremental by default (syncs since last run). Use `full: true` for a complete re-sync, or `since` to override the start date.",
 			inputSchema: {
 				full: z.boolean().default(false),
 				dryRun: z.boolean().default(false),
@@ -32,12 +32,24 @@ export function registerSyncTool(server: McpServer, deps: MirrorDeps): void {
 			});
 
 			const result = await runner.run({ full, dryRun, since });
+
+			const repoLines = result.repoBreakdown.map(
+				(r) => `  ${r.repo}: ${r.count} commits`,
+			);
+
 			const lines = [
+				`## Sync ${result.dryRun ? "(Dry Run)" : "Complete"}`,
+				"",
 				`Commits found: ${result.commitsFound}`,
 				`Commits mirrored: ${result.commitsMirrored}`,
-				`Dry run: ${result.dryRun}`,
 				`Since: ${result.since ?? "beginning"}`,
+				`Total mirrored: ${result.totalMirrored}`,
 			];
+
+			if (repoLines.length > 0) {
+				lines.push("", "### Per-repo breakdown", ...repoLines);
+			}
+
 			return { content: [{ type: "text" as const, text: lines.join("\n") }] };
 		},
 	);

@@ -12,18 +12,24 @@ const exec = promisify(execFile);
  * @param cwd - Working directory for the git command.
  * @param env - Optional key/value pairs merged on top of `process.env`.
  * @returns Trimmed stdout of the command.
- * @throws If git exits with a non-zero exit code.
+ * @throws With command context if git exits with a non-zero exit code.
  */
 async function git(
 	args: string[],
 	cwd: string,
 	env?: Record<string, string>,
 ): Promise<string> {
-	const result = await exec("git", args, {
-		cwd,
-		env: { ...process.env, ...env },
-	});
-	return result.stdout.trim();
+	try {
+		const result = await exec("git", args, {
+			cwd,
+			env: { ...process.env, ...env },
+		});
+		return result.stdout.trim();
+	} catch (err) {
+		const cmd = `git ${args.join(" ")}`;
+		const message = err instanceof Error ? err.message : String(err);
+		throw new Error(`${cmd} failed (cwd: ${cwd}): ${message}`);
+	}
 }
 
 /**
@@ -105,19 +111,21 @@ export class SystemGitOperations implements GitOperations {
 		await mkdir(repoPath, { recursive: true });
 		await git(["init"], repoPath);
 
-		// Ensure the repo has a git identity (CI runners may not have one)
 		await git(
 			["config", "user.email", "mirror-commits@noreply.github.com"],
 			repoPath,
 		);
 		await git(["config", "user.name", "mirror-commits"], repoPath);
 
-		// Switch to main branch (create if new, checkout if exists)
 		try {
 			await git(["checkout", "-b", "main"], repoPath);
-		} catch {
-			await git(["checkout", "main"], repoPath);
-			return; // Already initialized — skip README commit
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			if (message.includes("already exists")) {
+				await git(["checkout", "main"], repoPath);
+				return;
+			}
+			throw err;
 		}
 
 		const readmePath = `${repoPath}/README.md`;
@@ -133,8 +141,13 @@ export class SystemGitOperations implements GitOperations {
 	async addRemote(repoPath: string, repoUrl: string): Promise<void> {
 		try {
 			await git(["remote", "add", "origin", repoUrl], repoPath);
-		} catch {
-			await git(["remote", "set-url", "origin", repoUrl], repoPath);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			if (message.includes("already exists")) {
+				await git(["remote", "set-url", "origin", repoUrl], repoPath);
+				return;
+			}
+			throw err;
 		}
 	}
 
@@ -178,92 +191,12 @@ export class SystemGitOperations implements GitOperations {
 		try {
 			const result = await git(["rev-list", "--count", "HEAD"], repoPath);
 			return Number.parseInt(result, 10);
-		} catch {
+		} catch (err) {
+			console.error(
+				`commitCount failed for ${repoPath}:`,
+				err instanceof Error ? err.message : err,
+			);
 			return 0;
 		}
 	}
-}
-
-/**
- * Initialise a new mirror git repository at `repoPath`.
- *
- * @param repoPath - Absolute path to create the repository at.
- * @returns A promise that resolves when the repo is ready.
- *
- * @example
- * ```ts
- * await initMirrorRepo("/home/user/.local/share/mirror-commits/work-mirror");
- * ```
- */
-export async function initMirrorRepo(repoPath: string): Promise<void> {
-	return new SystemGitOperations().initMirrorRepo(repoPath);
-}
-
-/**
- * Add or update the `origin` remote for the repository at `repoPath`.
- *
- * @param repoPath - Absolute path to the local repository.
- * @param repoUrl - Remote URL to set.
- *
- * @example
- * ```ts
- * await addRemote("/tmp/my-mirror", "https://github.com/user/work-mirror.git");
- * ```
- */
-export async function addRemote(
-	repoPath: string,
-	repoUrl: string,
-): Promise<void> {
-	return new SystemGitOperations().addRemote(repoPath, repoUrl);
-}
-
-/**
- * Create an empty commit backdated to `date`.
- *
- * @param repoPath - Absolute path to the local repository.
- * @param date - ISO 8601 date string for `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE`.
- * @param authorEmail - Optional email to override GIT_AUTHOR_EMAIL / GIT_COMMITTER_EMAIL.
- * @param authorName - Optional name to override GIT_AUTHOR_NAME / GIT_COMMITTER_NAME.
- */
-export async function createEmptyCommit(
-	repoPath: string,
-	date: string,
-	authorEmail?: string,
-	authorName?: string,
-): Promise<void> {
-	return new SystemGitOperations().createEmptyCommit(
-		repoPath,
-		date,
-		authorEmail,
-		authorName,
-	);
-}
-
-/**
- * Push the `main` branch of the local repository to `origin`.
- *
- * @param repoPath - Absolute path to the local repository.
- *
- * @example
- * ```ts
- * await push("/tmp/my-mirror");
- * ```
- */
-export async function push(repoPath: string, force = false): Promise<void> {
-	return new SystemGitOperations().push(repoPath, force);
-}
-
-/**
- * Count commits reachable from HEAD in `repoPath`.
- *
- * @param repoPath - Absolute path to the local repository.
- * @returns The number of commits, or `0` if the repository is empty.
- *
- * @example
- * ```ts
- * const count = await commitCount("/tmp/my-mirror"); // e.g. 42
- * ```
- */
-export async function commitCount(repoPath: string): Promise<number> {
-	return new SystemGitOperations().commitCount(repoPath);
 }

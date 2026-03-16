@@ -17,7 +17,7 @@ export function registerLogTool(server: McpServer): void {
 		{
 			title: "Mirror Log",
 			description:
-				"Show recent sync log entries from the mirror log file (local-only)",
+				"Show recent sync log entries from the mirror log file. Local-only — not available in remote mode. Requires at least one sync to have been run.",
 			inputSchema: {
 				lines: z.number().min(1).max(500).default(50),
 			},

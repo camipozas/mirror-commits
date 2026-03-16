@@ -3,6 +3,6 @@ dist/
 .next/
 mirror.config.json
 state.json
-work-mirror/
+work-mirror*/
 *.log
 .env*

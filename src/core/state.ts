@@ -1,6 +1,6 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
-import { STATE_FILE } from "@/src/lib/constants";
+import { access, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { LEGACY_STATE_DIR, STATE_FILE } from "@/src/lib/constants";
 import { type State, stateSchema } from "@/src/lib/schema";
 
 /**
@@ -33,10 +33,43 @@ const defaultState: State = {
 };
 
 /**
+ * Check whether a file exists on disk.
+ *
+ * @param path - Absolute path to check.
+ * @returns `true` if the file exists and is accessible.
+ */
+async function fileExists(path: string): Promise<boolean> {
+	try {
+		await access(path);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Migrate state from the legacy `~/Documents/other/mirror-commits/state.json`
+ * path to the new XDG-compliant location. Only runs once — if the new file
+ * already exists the migration is a no-op.
+ *
+ * @param newStateFile - Absolute path to the XDG state file.
+ */
+async function migrateFromLegacyPath(newStateFile: string): Promise<void> {
+	if (await fileExists(newStateFile)) return;
+
+	const legacyStateFile = join(LEGACY_STATE_DIR, "state.json");
+	if (!(await fileExists(legacyStateFile))) return;
+
+	await mkdir(dirname(newStateFile), { recursive: true });
+	await copyFile(legacyStateFile, newStateFile);
+}
+
+/**
  * Reads and writes {@link State} to a JSON file on disk.
  *
  * @description Falls back to {@link defaultState} when the file does not
  * exist or cannot be parsed, making it safe to call before `mirror init`.
+ * On first load, automatically migrates state from the legacy path if present.
  *
  * @example
  * ```ts
@@ -50,8 +83,8 @@ export class FileStateStore implements StateStore {
 	private readonly stateFile: string;
 
 	/**
-	 * @param stateFile - Path to the state JSON file. Defaults to
-	 *   `~/.local/share/mirror-commits/state.json`.
+	 * @param stateFile - Path to the state JSON file. Defaults to the
+	 *   XDG-compliant path at `~/.local/share/mirror-commits/state.json`.
 	 */
 	constructor(stateFile: string = STATE_FILE) {
 		this.stateFile = stateFile;
@@ -60,6 +93,9 @@ export class FileStateStore implements StateStore {
 	/** {@inheritDoc StateStore.load} */
 	async load(): Promise<State> {
 		try {
+			if (this.stateFile === STATE_FILE) {
+				await migrateFromLegacyPath(this.stateFile);
+			}
 			const raw = await readFile(this.stateFile, "utf-8");
 			return stateSchema.parse(JSON.parse(raw));
 		} catch {
@@ -80,12 +116,6 @@ export class FileStateStore implements StateStore {
  *
  * @returns A promise resolving to the current persisted state, or the
  *   default state if none exists.
- *
- * @example
- * ```ts
- * const state = await loadState();
- * console.log(state.lastSyncedAt);
- * ```
  */
 export async function loadState(): Promise<State> {
 	return new FileStateStore().load();
@@ -97,11 +127,6 @@ export async function loadState(): Promise<State> {
  *
  * @param state - The state object to write.
  * @returns A promise that resolves when the write is complete.
- *
- * @example
- * ```ts
- * await saveState({ ...state, lastSyncedAt: new Date().toISOString() });
- * ```
  */
 export async function saveState(state: State): Promise<void> {
 	return new FileStateStore().save(state);

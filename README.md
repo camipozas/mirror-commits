@@ -4,6 +4,13 @@ Mirror work GitHub contributions to your personal profile's contribution graph �
 
 Creates empty, backdated commits in a private mirror repo on your personal account, one per work commit.
 
+## Prerequisites
+
+- **[gh CLI](https://cli.github.com/)** — installed and available on PATH
+- **Two gh accounts authenticated** — run `gh auth login` twice (once for work, once for personal)
+- **Personal email verified on GitHub** — the email used as `personalEmail` must be [verified on your GitHub account](https://github.com/settings/emails) for commits to count on your contribution graph
+- **Node.js 20+** and **pnpm** — for running the CLI locally
+
 ## How it works
 
 1. Searches GitHub for commits authored by your work email(s) in your work org
@@ -73,10 +80,11 @@ pnpm mirror init \
 ### Commands
 
 ```bash
-pnpm mirror sync            # incremental sync (since last run)
-pnpm mirror sync --full     # full re-sync from scratch
-pnpm mirror sync --dry-run  # preview without pushing
-pnpm mirror status          # check status
+pnpm mirror sync                    # incremental sync (since last run)
+pnpm mirror sync --full             # full re-sync from scratch
+pnpm mirror sync --dry-run          # preview without pushing
+pnpm mirror sync --since 2025-01-01 # sync from a specific date
+pnpm mirror status                  # check status, config, and schedule
 
 # Daily auto-sync (macOS launchd, default 10pm)
 pnpm mirror schedule install --hour 22
@@ -107,7 +115,36 @@ mirror status
 | `personalAccount` | Your personal GitHub username |
 | `mirrorRepoName` | Name of the private mirror repo |
 | `personalEmail` | Email set on mirror commits (must be verified on your GitHub account) |
-| `excludeRepos` | Repos to skip (e.g. `["OrgName/secret-repo"]`) |
+| `excludeRepos` | Repos to skip (e.g. `["OrgName/secret-repo"]`) — must use `org/repo` format |
+
+### State storage
+
+State is stored at `~/.local/share/mirror-commits/state.json` (XDG-compliant). Respects `XDG_DATA_HOME` if set.
+
+## Troubleshooting
+
+**Commits don't show on contribution graph**
+- Ensure `personalEmail` is [verified on your GitHub account](https://github.com/settings/emails)
+- Contribution graph updates can take up to 24 hours
+
+**`gh auth switch` fails**
+- Run `gh auth status` to check which accounts are logged in
+- Re-authenticate with `gh auth login` if needed
+
+**Push fails repeatedly**
+- Check which account is active: `gh auth status`
+- Ensure the mirror repo exists: `gh repo view <personal>/<mirror-repo>`
+- The sync will retry pushes up to 3 times with exponential backoff
+
+**Schedule not firing (macOS)**
+- The schedule uses macOS launchd — only works on macOS
+- Check status: `pnpm mirror schedule status`
+- Re-install if needed: `pnpm mirror schedule install`
+- Check logs: `cat ~/.local/share/mirror-commits/mirror.log`
+
+**State migration from older versions**
+- State was previously stored at `~/Documents/other/mirror-commits/state.json`
+- The tool automatically migrates to the XDG path on first run
 
 ## Tests
 

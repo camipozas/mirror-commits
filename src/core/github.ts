@@ -4,31 +4,32 @@ import { promisify } from "node:util";
 const exec = promisify(execFile);
 
 /**
- * Options forwarded to the internal `gh` CLI wrapper.
- */
-interface GhExecOptions {
-	/** When provided, clears GH_TOKEN so `gh` uses its own token store. */
-	user?: string;
-}
-
-/**
  * Thin wrapper around the `gh` CLI binary.
  *
  * @param args - Arguments forwarded to `gh`.
  * @param options - Optional execution options.
  * @returns Trimmed stdout of the `gh` invocation.
- * @throws If the `gh` process exits with a non-zero code.
+ * @throws With command context if the `gh` process exits with a non-zero code.
  */
-async function gh(args: string[], options?: GhExecOptions): Promise<string> {
+async function gh(
+	args: string[],
+	options?: { user?: string },
+): Promise<string> {
 	const env = { ...process.env };
 	if (options?.user) {
 		env.GH_TOKEN = undefined;
 	}
-	const { stdout } = await exec("gh", args, {
-		env,
-		maxBuffer: 10 * 1024 * 1024,
-	});
-	return stdout.trim();
+	try {
+		const { stdout } = await exec("gh", args, {
+			env,
+			maxBuffer: 10 * 1024 * 1024,
+		});
+		return stdout.trim();
+	} catch (err) {
+		const cmd = `gh ${args.join(" ")}`;
+		const message = err instanceof Error ? err.message : String(err);
+		throw new Error(`${cmd} failed: ${message}`);
+	}
 }
 
 /**
@@ -69,7 +70,14 @@ export interface AccountManager {
 export class GhAccountManager implements AccountManager {
 	/** {@inheritDoc AccountManager.switchTo} */
 	async switchTo(user: string): Promise<void> {
-		await gh(["auth", "switch", "--user", user]);
+		try {
+			await gh(["auth", "switch", "--user", user]);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			throw new Error(
+				`Failed to switch to account "${user}". Check that this account is authenticated: gh auth status\n${message}`,
+			);
+		}
 	}
 
 	/** {@inheritDoc AccountManager.current} */
@@ -195,7 +203,6 @@ export class GhCommitSource implements CommitSource {
 
 		for (const email of emails) {
 			if (since) {
-				// Incremental sync: single query with date filter
 				const results = await this.searchRange(
 					org,
 					email,
@@ -203,19 +210,32 @@ export class GhCommitSource implements CommitSource {
 				);
 				commits.push(...results);
 			} else {
-				// Full sync: partition by year to avoid the 1000-result API limit.
-				// First, do a quick count query to see if we even need partitioning.
 				const probe = await this.searchRange(org, email, "");
 
 				if (probe.length < 1000) {
 					commits.push(...probe);
 				} else {
-					// Partition by year from 2008 (GitHub's founding) to current year
 					const currentYear = new Date().getFullYear();
-					for (let year = 2008; year <= currentYear; year++) {
-						const dateFilter = `committer-date:${year}-01-01..${year}-12-31`;
-						const yearCommits = await this.searchRange(org, email, dateFilter);
-						commits.push(...yearCommits);
+					const years = Array.from(
+						{ length: currentYear - 2008 + 1 },
+						(_, i) => 2008 + i,
+					);
+
+					const concurrency = 3;
+					for (let i = 0; i < years.length; i += concurrency) {
+						const batch = years.slice(i, i + concurrency);
+						const results = await Promise.all(
+							batch.map((year) =>
+								this.searchRange(
+									org,
+									email,
+									`committer-date:${year}-01-01..${year}-12-31`,
+								),
+							),
+						);
+						for (const r of results) {
+							commits.push(...r);
+						}
 					}
 				}
 			}
@@ -299,104 +319,4 @@ export class GhRepoManager implements RepoManager {
 			return false;
 		}
 	}
-}
-
-/**
- * Switch the active `gh` CLI session to `user`.
- *
- * @param user - GitHub username to activate.
- * @returns A promise that resolves when the switch completes.
- *
- * @example
- * ```ts
- * await switchAccount("CPozas_euronet");
- * ```
- */
-export async function switchAccount(user: string): Promise<void> {
-	return new GhAccountManager().switchTo(user);
-}
-
-/**
- * Return the username of the currently active `gh` CLI session.
- *
- * @returns The active GitHub username, or `"unknown"`.
- *
- * @example
- * ```ts
- * const user = await currentAccount(); // "CPozas_euronet"
- * ```
- */
-export async function currentAccount(): Promise<string> {
-	return new GhAccountManager().current();
-}
-
-/**
- * Search for commits authored by any of the given `emails` within `org`.
- *
- * @param org - GitHub organisation to search within.
- * @param emails - Commit-author email addresses to match.
- * @param since - Optional ISO date; only return commits after this date.
- * @returns Array of {@link CommitInfo} objects sorted by the API response order.
- *
- * @example
- * ```ts
- * const commits = await searchCommits("MyOrg", ["me@company.com"], "2024-01-01");
- * ```
- */
-export async function searchCommits(
-	org: string,
-	emails: string[],
-	since?: string | null,
-): Promise<CommitInfo[]> {
-	return new GhCommitSource().searchCommits(org, emails, since);
-}
-
-/**
- * List all repository full names (`owner/repo`) in the given organisation.
- *
- * @param org - GitHub organisation to list repositories for.
- * @returns Array of full repository names.
- *
- * @example
- * ```ts
- * const repos = await listOrgRepos("MyOrg");
- * // ["MyOrg/api", "MyOrg/frontend", ...]
- * ```
- */
-export async function listOrgRepos(org: string): Promise<string[]> {
-	return new GhCommitSource().listOrgRepos(org);
-}
-
-/**
- * Create a new GitHub repository.
- *
- * @param name - Full repository name or bare name for the authenticated user.
- * @param isPublic - Whether to create the repository as public.
- * @returns Raw output from `gh repo create`.
- *
- * @example
- * ```ts
- * await createRepo("camipozas/work-mirror", true);
- * ```
- */
-export async function createRepo(
-	name: string,
-	isPublic: boolean,
-): Promise<string> {
-	return new GhRepoManager().createRepo(name, isPublic);
-}
-
-/**
- * Check whether a repository exists and is accessible.
- *
- * @param fullName - Full `owner/repo` repository name.
- * @returns `true` if the repository exists, `false` otherwise.
- *
- * @example
- * ```ts
- * const exists = await repoExists("camipozas/work-mirror"); // true | false
- * ```
- */
-export async function repoExists(fullName: string): Promise<boolean> {
-	return new GhRepoManager().repoExists(fullName);
 }

@@ -1,56 +1,70 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { FileStateStore } from "@/src/core/state";
 
-// Mock the constants to use a temp dir
-const tempDir = await mkdtemp(join(tmpdir(), "mirror-test-"));
-const mockStateFile = join(tempDir, "state.json");
+let tempDir: string;
 
-vi.mock("@/src/lib/constants.js", () => ({
-	STATE_FILE: mockStateFile,
-}));
-
-const { loadState, saveState } = await import("@/src/core/state.js");
-
-afterEach(async () => {
-	try {
-		await rm(mockStateFile);
-	} catch {}
+beforeEach(async () => {
+	tempDir = await mkdtemp(join(tmpdir(), "mirror-state-"));
 });
 
-describe("loadState", () => {
+afterEach(async () => {
+	if (tempDir) await rm(tempDir, { recursive: true });
+});
+
+describe("FileStateStore", () => {
 	it("returns default state when file does not exist", async () => {
-		const state = await loadState();
+		const store = new FileStateStore(join(tempDir, "state.json"));
+		const state = await store.load();
 		expect(state.lastSyncedAt).toBeNull();
 		expect(state.totalCommitsMirrored).toBe(0);
 		expect(state.mirrorRepoPath).toBe("");
 	});
 
 	it("reads existing state file", async () => {
+		const stateFile = join(tempDir, "state.json");
 		await writeFile(
-			mockStateFile,
+			stateFile,
 			JSON.stringify({
 				lastSyncedAt: "2026-03-13T00:00:00Z",
 				totalCommitsMirrored: 10,
 				mirrorRepoPath: "/tmp/mirror",
 			}),
 		);
-		const state = await loadState();
+		const store = new FileStateStore(stateFile);
+		const state = await store.load();
 		expect(state.totalCommitsMirrored).toBe(10);
 		expect(state.mirrorRepoPath).toBe("/tmp/mirror");
 	});
-});
 
-describe("saveState", () => {
-	it("writes state to file", async () => {
-		await saveState({
+	it("writes state to file and reads it back", async () => {
+		const stateFile = join(tempDir, "state.json");
+		const store = new FileStateStore(stateFile);
+
+		await store.save({
 			lastSyncedAt: "2026-03-13T12:00:00Z",
 			totalCommitsMirrored: 5,
 			mirrorRepoPath: "/tmp/test-mirror",
 		});
-		const raw = await readFile(mockStateFile, "utf-8");
-		const parsed = JSON.parse(raw);
-		expect(parsed.totalCommitsMirrored).toBe(5);
+
+		const state = await store.load();
+		expect(state.totalCommitsMirrored).toBe(5);
+		expect(state.mirrorRepoPath).toBe("/tmp/test-mirror");
+	});
+
+	it("creates parent directory if it does not exist", async () => {
+		const nestedPath = join(tempDir, "nested", "deep", "state.json");
+		const store = new FileStateStore(nestedPath);
+
+		await store.save({
+			lastSyncedAt: null,
+			totalCommitsMirrored: 0,
+			mirrorRepoPath: "",
+		});
+
+		const state = await store.load();
+		expect(state.totalCommitsMirrored).toBe(0);
 	});
 });
