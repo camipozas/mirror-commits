@@ -4,13 +4,6 @@ Mirror work GitHub contributions to your personal profile's contribution graph �
 
 Creates empty, backdated commits in a private mirror repo on your personal account, one per work commit.
 
-## Prerequisites
-
-- **[gh CLI](https://cli.github.com/)** — installed and available on PATH
-- **Two gh accounts authenticated** — run `gh auth login` twice (once for work, once for personal)
-- **Personal email verified on GitHub** — the email used as `personalEmail` must be [verified on your GitHub account](https://github.com/settings/emails) for commits to count on your contribution graph
-- **Node.js 20+** and **pnpm** — for running the CLI locally
-
 ## How it works
 
 1. Searches GitHub for commits authored by your work email(s) in your work org
@@ -19,9 +12,15 @@ Creates empty, backdated commits in a private mirror repo on your personal accou
 4. Sets `GIT_AUTHOR_EMAIL` and `GIT_COMMITTER_EMAIL` to your personal email
 5. Pushes to the mirror repo — GitHub counts these toward your personal contribution graph
 
+## Prerequisites
+
+- **MCP mode:** Two GitHub PATs (work + personal). No `gh` CLI or local install needed.
+- **CLI mode:** `gh` CLI installed, two accounts authenticated (`gh auth login` × 2), Node.js 20+, pnpm.
+- **Both modes:** Personal email [verified on GitHub](https://github.com/settings/emails).
+
 ## MCP Server (remote)
 
-The easiest way to use mirror-commits. Hosted on Vercel — no local install needed.
+The easiest way to use mirror-commits. Hosted on Vercel — no local install, no `gh` CLI needed. Everything runs through the GitHub API using your tokens.
 
 ### 1. Create two GitHub PATs
 
@@ -52,7 +51,13 @@ Replace the token placeholders and fill in the `X-Config` JSON with your details
 
 ### Available tools
 
-`mirror_init`, `mirror_sync`, `mirror_status`, `mirror_list_repos`, `mirror_config`
+| Tool | Description |
+|------|-------------|
+| `mirror_init` | One-time setup: create mirror repo and run initial sync (no `gh` CLI needed) |
+| `mirror_sync` | Sync commits (supports `--since`, `--full`, `--dry-run`) |
+| `mirror_status` | Check how many commits have been mirrored |
+| `mirror_list_repos` | List all repos in your org |
+| `mirror_config` | View or update configuration |
 
 ## CLI (local)
 

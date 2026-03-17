@@ -32,12 +32,14 @@ export class RemoteStateStore implements StateStore {
 			const parsed = JSON.parse(content) as {
 				lastSyncedAt?: string | null;
 				totalCommitsMirrored?: number;
+				mirroredShas?: string[];
 			};
 
 			return {
 				mirrorRepoPath: this.repoFullName,
 				lastSyncedAt: parsed.lastSyncedAt ?? null,
 				totalCommitsMirrored: parsed.totalCommitsMirrored ?? 0,
+				mirroredShas: parsed.mirroredShas ?? [],
 			};
 		} catch {
 			// File doesn't exist yet — fresh state
@@ -45,6 +47,7 @@ export class RemoteStateStore implements StateStore {
 				mirrorRepoPath: this.repoFullName,
 				lastSyncedAt: null,
 				totalCommitsMirrored: 0,
+				mirroredShas: [],
 			};
 		}
 	}
@@ -53,6 +56,7 @@ export class RemoteStateStore implements StateStore {
 		const payload = {
 			lastSyncedAt: state.lastSyncedAt,
 			totalCommitsMirrored: state.totalCommitsMirrored,
+			mirroredShas: state.mirroredShas ?? [],
 		};
 		const encoded = Buffer.from(JSON.stringify(payload, null, 2)).toString(
 			"base64",

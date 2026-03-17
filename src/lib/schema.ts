@@ -47,6 +47,8 @@ export const stateSchema = z.object({
 	totalCommitsMirrored: z.number(),
 	/** Absolute path to the local clone of the mirror repository. */
 	mirrorRepoPath: z.string(),
+	/** Set of work-commit SHAs that have already been mirrored (prevents duplicates on full re-sync or state loss). */
+	mirroredShas: z.array(z.string()).optional().default([]),
 });
 
 /**

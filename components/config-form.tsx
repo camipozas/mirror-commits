@@ -77,7 +77,9 @@ export function ConfigForm() {
 				Fill in your details, hit copy, and paste the result into your MCP
 				client config (e.g.{" "}
 				<code className="text-primary/70">~/.claude.json</code> under{" "}
-				<code className="text-primary/70">mcpServers</code>). That's it!
+				<code className="text-primary/70">mcpServers</code>). No{" "}
+				<code className="text-primary/70">gh</code> CLI needed — everything runs
+				through the GitHub API using your tokens.
 			</p>
 
 			{/* Token guidance */}

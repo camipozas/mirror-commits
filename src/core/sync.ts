@@ -201,7 +201,11 @@ export class SyncRunner {
 				);
 			}
 		}
-		const filtered = commits.filter((c) => !excluded.has(c.repo));
+
+		const alreadyMirrored = new Set(state.mirroredShas ?? []);
+		const filtered = commits.filter(
+			(c) => !excluded.has(c.repo) && !alreadyMirrored.has(c.sha),
+		);
 
 		filtered.sort(
 			(a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
@@ -255,6 +259,11 @@ export class SyncRunner {
 		const now = new Date().toISOString();
 		state.lastSyncedAt = now;
 		state.totalCommitsMirrored += filtered.length;
+		const shas = new Set(state.mirroredShas ?? []);
+		for (const c of filtered) {
+			shas.add(c.sha);
+		}
+		state.mirroredShas = Array.from(shas);
 		await stateStore.save(state);
 
 		console.log(

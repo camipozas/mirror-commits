@@ -110,14 +110,16 @@ export default function Home() {
 					<span className="text-xs font-semibold text-text">Prerequisites</span>
 				</div>
 				<ul className="text-xs text-text-dim space-y-1 list-disc list-inside">
-					<li>
-						<code className="text-primary/70">gh</code> CLI installed
-					</li>
-					<li>
-						Two GitHub accounts authenticated (
-						<code className="text-primary/70">gh auth login</code> × 2)
-					</li>
+					<li>Two GitHub accounts (work org + personal)</li>
 					<li>Personal email verified on your GitHub account</li>
+					<li>
+						<strong>MCP option:</strong> just two GitHub PATs (no local install)
+					</li>
+					<li>
+						<strong>CLI option:</strong>{" "}
+						<code className="text-primary/70">gh</code> CLI installed + both
+						accounts authenticated
+					</li>
 				</ul>
 			</div>
 
@@ -127,9 +129,9 @@ export default function Home() {
 					Get started
 				</h2>
 				<p className="text-xs text-text-dim leading-relaxed">
-					First, run <code className="text-primary/70">pnpm mirror init</code>{" "}
-					via the CLI to create your mirror repo and do the initial sync. After
-					that, pick whichever option fits your daily workflow.
+					Pick whichever option fits your workflow. The MCP server handles
+					everything remotely — no local install needed. Or use the CLI for full
+					local control.
 				</p>
 			</section>
 
@@ -138,13 +140,13 @@ export default function Home() {
 				<div className="flex items-center gap-2">
 					<Cloud size={16} className="text-primary" />
 					<h2 className="text-xs font-semibold text-text-muted uppercase tracking-wide">
-						Option A: MCP Server (day-to-day syncs)
+						Option A: MCP Server (zero install)
 					</h2>
 				</div>
 				<p className="text-xs text-text-dim leading-relaxed">
-					After initial setup via CLI, use the MCP server for ongoing syncs from
-					Claude Code, Cursor, or any MCP-compatible AI tool — no local install
-					needed day-to-day.
+					Use the hosted MCP server from Claude Code, Cursor, or any
+					MCP-compatible AI tool. Add the URL to your config and you're done —
+					no gh CLI, no local clone, no tokens in your config file.
 				</p>
 
 				<p className="text-xs text-text-dim">
@@ -164,6 +166,10 @@ export default function Home() {
 						</thead>
 						<tbody className="text-text-dim">
 							{[
+								[
+									"mirror_init",
+									"One-time setup: create mirror repo and run initial sync",
+								],
 								[
 									"mirror_sync",
 									"Sync your commits (supports --since, --full, --dry-run)",

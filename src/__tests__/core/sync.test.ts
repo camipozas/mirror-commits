@@ -26,6 +26,7 @@ function createMockDeps() {
 			lastSyncedAt: null,
 			totalCommitsMirrored: 0,
 			mirrorRepoPath: "/tmp/fake-repo",
+			mirroredShas: [],
 		} satisfies State),
 		save: vi.fn().mockResolvedValue(undefined),
 	};
@@ -66,6 +67,7 @@ describe("SyncRunner", () => {
 			lastSyncedAt: null,
 			totalCommitsMirrored: 0,
 			mirrorRepoPath: "",
+			mirroredShas: [],
 		});
 
 		const runner = new SyncRunner(deps);
@@ -75,8 +77,8 @@ describe("SyncRunner", () => {
 	it("returns correct dry run result with repo breakdown", async () => {
 		const deps = createMockDeps();
 		vi.mocked(deps.commitSource.searchCommits).mockResolvedValue([
-			{ date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
-			{ date: "2025-06-16T10:00:00Z", repo: "test-org/repo-b" },
+			{ sha: "aaa111", date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
+			{ sha: "bbb222", date: "2025-06-16T10:00:00Z", repo: "test-org/repo-b" },
 		]);
 
 		const runner = new SyncRunner(deps);
@@ -96,7 +98,7 @@ describe("SyncRunner", () => {
 	it("creates commits and pushes on real sync", async () => {
 		const deps = createMockDeps();
 		vi.mocked(deps.commitSource.searchCommits).mockResolvedValue([
-			{ date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
+			{ sha: "aaa111", date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
 		]);
 
 		const runner = new SyncRunner(deps);
@@ -112,7 +114,7 @@ describe("SyncRunner", () => {
 	it("saves state only after successful push", async () => {
 		const deps = createMockDeps();
 		vi.mocked(deps.commitSource.searchCommits).mockResolvedValue([
-			{ date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
+			{ sha: "aaa111", date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
 		]);
 
 		const runner = new SyncRunner(deps);
@@ -132,8 +134,12 @@ describe("SyncRunner", () => {
 			excludeRepos: ["test-org/secret-repo"],
 		});
 		vi.mocked(deps.commitSource.searchCommits).mockResolvedValue([
-			{ date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
-			{ date: "2025-06-16T10:00:00Z", repo: "test-org/secret-repo" },
+			{ sha: "aaa111", date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
+			{
+				sha: "ccc333",
+				date: "2025-06-16T10:00:00Z",
+				repo: "test-org/secret-repo",
+			},
 		]);
 
 		const runner = new SyncRunner(deps);
@@ -145,7 +151,7 @@ describe("SyncRunner", () => {
 	it("retries push on failure then succeeds", async () => {
 		const deps = createMockDeps();
 		vi.mocked(deps.commitSource.searchCommits).mockResolvedValue([
-			{ date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
+			{ sha: "aaa111", date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
 		]);
 		vi.mocked(deps.gitOps.push)
 			.mockRejectedValueOnce(new Error("network error"))
@@ -161,7 +167,7 @@ describe("SyncRunner", () => {
 	it("throws after exhausting push retries", async () => {
 		const deps = createMockDeps();
 		vi.mocked(deps.commitSource.searchCommits).mockResolvedValue([
-			{ date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
+			{ sha: "aaa111", date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
 		]);
 		vi.mocked(deps.gitOps.push).mockRejectedValue(new Error("network error"));
 
@@ -173,9 +179,9 @@ describe("SyncRunner", () => {
 	it("includes per-repo breakdown with correct counts", async () => {
 		const deps = createMockDeps();
 		vi.mocked(deps.commitSource.searchCommits).mockResolvedValue([
-			{ date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
-			{ date: "2025-06-16T10:00:00Z", repo: "test-org/repo-a" },
-			{ date: "2025-06-17T10:00:00Z", repo: "test-org/repo-b" },
+			{ sha: "aaa111", date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
+			{ sha: "bbb222", date: "2025-06-16T10:00:00Z", repo: "test-org/repo-a" },
+			{ sha: "ccc333", date: "2025-06-17T10:00:00Z", repo: "test-org/repo-b" },
 		]);
 
 		const runner = new SyncRunner(deps);
@@ -185,5 +191,39 @@ describe("SyncRunner", () => {
 			{ repo: "test-org/repo-a", count: 2 },
 			{ repo: "test-org/repo-b", count: 1 },
 		]);
+	});
+
+	it("skips commits already in mirroredShas", async () => {
+		const deps = createMockDeps();
+		vi.mocked(deps.stateStore.load).mockResolvedValue({
+			lastSyncedAt: null,
+			totalCommitsMirrored: 1,
+			mirrorRepoPath: "/tmp/fake-repo",
+			mirroredShas: ["aaa111"],
+		});
+		vi.mocked(deps.commitSource.searchCommits).mockResolvedValue([
+			{ sha: "aaa111", date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
+			{ sha: "ddd444", date: "2025-06-16T10:00:00Z", repo: "test-org/repo-a" },
+		]);
+
+		const runner = new SyncRunner(deps);
+		const result = await runner.run();
+
+		expect(result.commitsFound).toBe(1);
+		expect(result.commitsMirrored).toBe(1);
+		expect(deps.gitOps.createEmptyCommit).toHaveBeenCalledOnce();
+	});
+
+	it("persists new SHAs to state after sync", async () => {
+		const deps = createMockDeps();
+		vi.mocked(deps.commitSource.searchCommits).mockResolvedValue([
+			{ sha: "aaa111", date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
+		]);
+
+		const runner = new SyncRunner(deps);
+		await runner.run();
+
+		const savedState = vi.mocked(deps.stateStore.save).mock.calls[0][0];
+		expect(savedState.mirroredShas).toContain("aaa111");
 	});
 });

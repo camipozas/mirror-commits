@@ -30,6 +30,7 @@ const defaultState: State = {
 	lastSyncedAt: null,
 	totalCommitsMirrored: 0,
 	mirrorRepoPath: "",
+	mirroredShas: [],
 };
 
 /**
