@@ -110,9 +110,7 @@ export default function Home() {
 					<span className="text-xs font-semibold text-text">Prerequisites</span>
 				</div>
 				<ul className="text-xs text-text-dim space-y-1 list-disc list-inside">
-					<li>
-						Two GitHub accounts (work org + personal)
-					</li>
+					<li>Two GitHub accounts (work org + personal)</li>
 					<li>Personal email verified on your GitHub account</li>
 					<li>
 						<strong>MCP option:</strong> just two GitHub PATs (no local install)

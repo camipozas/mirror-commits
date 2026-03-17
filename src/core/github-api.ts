@@ -75,6 +75,7 @@ export class ApiCommitSource implements CommitSource {
 			const parsed = await this.client.fetch<{
 				total_count: number;
 				items: Array<{
+					sha?: string;
 					commit?: {
 						committer?: { date?: string };
 						author?: { date?: string };
@@ -88,10 +89,11 @@ export class ApiCommitSource implements CommitSource {
 			const items = parsed.items ?? [];
 
 			for (const item of items) {
+				const sha = item.sha ?? "";
 				const date = item.commit?.committer?.date ?? item.commit?.author?.date;
 				const repo = item.repository?.full_name ?? "unknown";
-				if (date) {
-					commits.push({ date, repo });
+				if (date && sha) {
+					commits.push({ sha, date, repo });
 				}
 			}
 
@@ -109,7 +111,17 @@ export class ApiCommitSource implements CommitSource {
 		emails: string[],
 		since?: string | null,
 	): Promise<CommitInfo[]> {
+		const seen = new Set<string>();
 		const commits: CommitInfo[] = [];
+
+		const addUnique = (results: CommitInfo[]) => {
+			for (const c of results) {
+				if (!seen.has(c.sha)) {
+					seen.add(c.sha);
+					commits.push(c);
+				}
+			}
+		};
 
 		for (const email of emails) {
 			if (since) {
@@ -118,17 +130,17 @@ export class ApiCommitSource implements CommitSource {
 					email,
 					`committer-date:>${since}`,
 				);
-				commits.push(...results);
+				addUnique(results);
 			} else {
 				const probe = await this.searchRange(org, email, "");
 				if (probe.length < 1000) {
-					commits.push(...probe);
+					addUnique(probe);
 				} else {
 					const currentYear = new Date().getFullYear();
 					for (let year = 2008; year <= currentYear; year++) {
 						const dateFilter = `committer-date:${year}-01-01..${year}-12-31`;
 						const yearCommits = await this.searchRange(org, email, dateFilter);
-						commits.push(...yearCommits);
+						addUnique(yearCommits);
 					}
 				}
 			}

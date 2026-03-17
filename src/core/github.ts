@@ -92,6 +92,8 @@ export class GhAccountManager implements AccountManager {
  * A single commit entry returned by the GitHub commit-search API.
  */
 export interface CommitInfo {
+	/** The commit SHA (used for deduplication across emails and syncs). */
+	sha: string;
 	/** ISO 8601 date string of when the commit was made. */
 	date: string;
 	/** Full repository name in `owner/repo` format. */
@@ -177,10 +179,11 @@ export class GhCommitSource implements CommitSource {
 			const items = parsed.items ?? [];
 
 			for (const item of items) {
+				const sha = item.sha ?? "";
 				const date = item.commit?.committer?.date ?? item.commit?.author?.date;
 				const repo = item.repository?.full_name ?? "unknown";
-				if (date) {
-					commits.push({ date, repo });
+				if (date && sha) {
+					commits.push({ sha, date, repo });
 				}
 			}
 
@@ -199,7 +202,17 @@ export class GhCommitSource implements CommitSource {
 		emails: string[],
 		since?: string | null,
 	): Promise<CommitInfo[]> {
+		const seen = new Set<string>();
 		const commits: CommitInfo[] = [];
+
+		const addUnique = (results: CommitInfo[]) => {
+			for (const c of results) {
+				if (!seen.has(c.sha)) {
+					seen.add(c.sha);
+					commits.push(c);
+				}
+			}
+		};
 
 		for (const email of emails) {
 			if (since) {
@@ -208,12 +221,12 @@ export class GhCommitSource implements CommitSource {
 					email,
 					`committer-date:>${since}`,
 				);
-				commits.push(...results);
+				addUnique(results);
 			} else {
 				const probe = await this.searchRange(org, email, "");
 
 				if (probe.length < 1000) {
-					commits.push(...probe);
+					addUnique(probe);
 				} else {
 					const currentYear = new Date().getFullYear();
 					const years = Array.from(
@@ -234,7 +247,7 @@ export class GhCommitSource implements CommitSource {
 							),
 						);
 						for (const r of results) {
-							commits.push(...r);
+							addUnique(r);
 						}
 					}
 				}

@@ -255,22 +255,42 @@ export class InitRunner {
 		// Verify work account auth
 		const active = await accountManager.current();
 		if (active !== workGhUser) {
-			log(remote ? `Switching to work account (${workGhUser})...` : chalk.yellow(`  Switching to work account (${workGhUser})...`));
+			log(
+				remote
+					? `Switching to work account (${workGhUser})...`
+					: chalk.yellow(`  Switching to work account (${workGhUser})...`),
+			);
 			await accountManager.switchTo(workGhUser);
 		}
-		log(remote ? `✓ Work account (${workGhUser}) authenticated` : chalk.green(`  ✓ Work account (${workGhUser}) authenticated`));
+		log(
+			remote
+				? `✓ Work account (${workGhUser}) authenticated`
+				: chalk.green(`  ✓ Work account (${workGhUser}) authenticated`),
+		);
 
 		// Verify personal account auth
 		try {
 			await accountManager.switchTo(personalAccount);
-			log(remote ? `✓ Personal account (${personalAccount}) authenticated` : chalk.green(`  ✓ Personal account (${personalAccount}) authenticated`));
+			log(
+				remote
+					? `✓ Personal account (${personalAccount}) authenticated`
+					: chalk.green(
+							`  ✓ Personal account (${personalAccount}) authenticated`,
+						),
+			);
 		} catch {
 			throw new Error(
 				`Personal account "${personalAccount}" is not authenticated.${remote ? "" : " Run: gh auth login"}`,
 			);
 		}
 
-		log(remote ? `Note: ensure ${personalEmail} is verified on your GitHub account` : chalk.dim(`  Note: ensure ${personalEmail} is verified on your GitHub account`));
+		log(
+			remote
+				? `Note: ensure ${personalEmail} is verified on your GitHub account`
+				: chalk.dim(
+						`  Note: ensure ${personalEmail} is verified on your GitHub account`,
+					),
+		);
 
 		// Ensure gh is configured as git credential helper (skip in remote mode)
 		if (!remote) {
@@ -294,22 +314,38 @@ export class InitRunner {
 		}
 
 		// Check / create mirror repo
-		log(remote ? "Setting up mirror repo..." : chalk.blue("\nSetting up mirror repo..."));
+		log(
+			remote
+				? "Setting up mirror repo..."
+				: chalk.blue("\nSetting up mirror repo..."),
+		);
 		await accountManager.switchTo(personalAccount);
 
 		const exists = await repoManager.repoExists(fullRepoName);
 		if (!exists) {
 			await repoManager.createRepo(fullRepoName, false);
-			log(remote ? `✓ Mirror repo created: ${fullRepoName} (private)` : chalk.green(`  ✓ Mirror repo created: ${fullRepoName} (private)`));
+			log(
+				remote
+					? `✓ Mirror repo created: ${fullRepoName} (private)`
+					: chalk.green(`  ✓ Mirror repo created: ${fullRepoName} (private)`),
+			);
 		} else {
-			log(remote ? `✓ ${fullRepoName} already exists` : chalk.green(`  ✓ ${fullRepoName} already exists`));
+			log(
+				remote
+					? `✓ ${fullRepoName} already exists`
+					: chalk.green(`  ✓ ${fullRepoName} already exists`),
+			);
 		}
 
 		// Initialise local mirror repo
 		await gitOps.initMirrorRepo(mirrorRepoPath);
 		await gitOps.addRemote(mirrorRepoPath, repoUrl);
 		await gitOps.push(mirrorRepoPath, true);
-		log(remote ? `✓ Local clone initialized at ${mirrorRepoPath}` : chalk.green(`  ✓ Local clone initialized at ${mirrorRepoPath}`));
+		log(
+			remote
+				? `✓ Local clone initialized at ${mirrorRepoPath}`
+				: chalk.green(`  ✓ Local clone initialized at ${mirrorRepoPath}`),
+		);
 
 		// Restore work account session
 		await accountManager.switchTo(workGhUser);
@@ -322,13 +358,28 @@ export class InitRunner {
 
 		// Auto-run full sync
 		if (autoSync) {
-			log(remote ? "Running first sync..." : chalk.blue("\nRunning first sync..."));
-			await syncFn({ full: true, configPath: remote ? undefined : resolve(CONFIG_FILE) });
+			log(
+				remote
+					? "Running first sync..."
+					: chalk.blue("\nRunning first sync..."),
+			);
+			await syncFn({
+				full: true,
+				configPath: remote ? undefined : resolve(CONFIG_FILE),
+			});
 		}
 
-		log(remote ? "Done! Your contribution graph will update within 24h." : chalk.green("\nDone! Your contribution graph will update within 24h."));
+		log(
+			remote
+				? "Done! Your contribution graph will update within 24h."
+				: chalk.green(
+						"\nDone! Your contribution graph will update within 24h.",
+					),
+		);
 		if (!remote) {
-			log(chalk.dim("Next: run `mirror schedule install` for daily auto-sync."));
+			log(
+				chalk.dim("Next: run `mirror schedule install` for daily auto-sync."),
+			);
 		}
 
 		return remote ? messages.join("\n") : "Initialized successfully.";
