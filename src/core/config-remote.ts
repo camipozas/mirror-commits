@@ -1,5 +1,5 @@
-import type { ConfigLoader } from "@/src/core/config";
-import { type Config, configSchema } from "@/src/lib/schema";
+import type { ConfigLoader } from '@/src/core/config';
+import { type Config, configSchema } from '@/src/lib/schema';
 
 /**
  * {@link ConfigLoader} that parses configuration from an in-memory object.
@@ -9,13 +9,13 @@ import { type Config, configSchema } from "@/src/lib/schema";
  * by the route handler and passed in at construction time.
  */
 export class HeaderConfigLoader implements ConfigLoader {
-	private readonly config: Config;
+  private readonly config: Config;
 
-	constructor(raw: unknown) {
-		this.config = configSchema.parse(raw);
-	}
+  constructor(raw: unknown) {
+    this.config = configSchema.parse(raw);
+  }
 
-	async load(): Promise<Config> {
-		return this.config;
-	}
+  async load(): Promise<Config> {
+    return this.config;
+  }
 }

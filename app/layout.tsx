@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
-	title: "Mirror Commits",
-	description: "Mirror work GitHub contributions to personal profile",
+  title: 'Mirror Commits',
+  description: 'Mirror work GitHub contributions to personal profile',
 };
 
 const themeScript = `
@@ -15,17 +15,16 @@ const themeScript = `
 `;
 
 export default function RootLayout({
-	children,
+  children,
 }: {
-	children: React.ReactNode;
+  children: React.ReactNode;
 }) {
-	return (
-		<html lang="en" suppressHydrationWarning>
-			<head>
-				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: inline script to prevent FOUC */}
-				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
-			</head>
-			<body className="min-h-screen antialiased">{children}</body>
-		</html>
-	);
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body className="min-h-screen antialiased">{children}</body>
+    </html>
+  );
 }

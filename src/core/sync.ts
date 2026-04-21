@@ -1,80 +1,79 @@
-import chalk from "chalk";
-import { type ConfigLoader, FileConfigLoader } from "@/src/core/config";
-import { type GitOperations, SystemGitOperations } from "@/src/core/git";
+import chalk from 'chalk';
+import { type ConfigLoader, FileConfigLoader } from '@/src/core/config';
+import { type GitOperations, SystemGitOperations } from '@/src/core/git';
 import {
-	type AccountManager,
-	type CommitSource,
-	GhAccountManager,
-	GhCommitSource,
-} from "@/src/core/github";
-import { FileStateStore, type StateStore } from "@/src/core/state";
+  type AccountManager,
+  type CommitSource,
+  GhAccountManager,
+  GhCommitSource,
+} from '@/src/core/github';
+import { FileStateStore, type StateStore } from '@/src/core/state';
 
 /**
  * Options accepted by {@link sync}.
  */
 export interface SyncOptions {
-	/**
-	 * When `true`, performs a full re-sync from the beginning of history,
-	 * ignoring the stored `lastSyncedAt` cursor.
-	 *
-	 * @default false
-	 */
-	full?: boolean;
+  /**
+   * Path to the config JSON file. Defaults to `mirror.config.json` in the
+   * current working directory.
+   */
+  configPath?: string;
 
-	/**
-	 * When `true`, logs what would be mirrored without writing any commits
-	 * or pushing to the remote.
-	 *
-	 * @default false
-	 */
-	dryRun?: boolean;
+  /**
+   * When `true`, logs what would be mirrored without writing any commits
+   * or pushing to the remote.
+   *
+   * @default false
+   */
+  dryRun?: boolean;
+  /**
+   * When `true`, performs a full re-sync from the beginning of history,
+   * ignoring the stored `lastSyncedAt` cursor.
+   *
+   * @default false
+   */
+  full?: boolean;
 
-	/**
-	 * Override the sync start date. Takes precedence over `lastSyncedAt`
-	 * from the state file, but is ignored when `full` is `true`.
-	 */
-	since?: string;
+  /**
+   * Override the sync start date. Takes precedence over `lastSyncedAt`
+   * from the state file, but is ignored when `full` is `true`.
+   */
+  since?: string;
 
-	/**
-	 * Upper bound for the search window (exclusive). Paired with `since` to
-	 * chunk around the GitHub Search API's 1000-result cap. When omitted the
-	 * search runs up to "now".
-	 */
-	until?: string;
-
-	/**
-	 * Path to the config JSON file. Defaults to `mirror.config.json` in the
-	 * current working directory.
-	 */
-	configPath?: string;
+  /**
+   * Upper bound for the search window (exclusive). Paired with `since` to
+   * chunk around the GitHub Search API's 1000-result cap. When omitted the
+   * search runs up to "now".
+   */
+  until?: string;
 }
 
 /**
  * Per-repository commit breakdown included in sync results.
  */
 export interface RepoBreakdown {
-	/** Full repository name in `owner/repo` format. */
-	repo: string;
-	/** Number of commits from this repository. */
-	count: number;
+  /** Number of commits from this repository. */
+  count: number;
+  /** Full repository name in `owner/repo` format. */
+  repo: string;
 }
 
 /**
  * Summary returned by {@link sync} after a run completes.
  */
 export interface SyncResult {
-	/** Number of commits found in the work org (after exclusion filtering). */
-	commitsFound: number;
-	/** Number of commits actually written to the mirror repo (0 on dry runs). */
-	commitsMirrored: number;
-	/** Whether this was a dry run. */
-	dryRun: boolean;
-	/** The ISO date used as the lower bound for the search, or `null` for full sync. */
-	since: string | null;
-	/** Per-repository breakdown of commits found. */
-	repoBreakdown: RepoBreakdown[];
-	/** Running total of all mirrored commits (including previous syncs). */
-	totalMirrored: number;
+  /** Number of commits found in the work org (after exclusion filtering). */
+  commitsFound: number;
+  /** Number of commits actually written to the mirror repo (0 on dry runs). */
+  commitsMirrored: number;
+  /** Whether this was a dry run. */
+  dryRun: boolean;
+  /** Per-repository breakdown of commits found. */
+  repoBreakdown: RepoBreakdown[];
+  /** The ISO date used as the lower bound for the search, or `null` for full sync. */
+  since: string | null;
+  /** Running total of all mirrored commits (including previous syncs). */
+  totalMirrored: number;
 }
 
 /**
@@ -87,16 +86,16 @@ export interface SyncResult {
  * {@link SyncOptions}, preserving the ability to pass a config path per-call.
  */
 export interface SyncDependencies {
-	/** Source of configuration data. When omitted, a file loader is built from `SyncOptions.configPath`. */
-	configLoader?: ConfigLoader;
-	/** Persistent state store. */
-	stateStore: StateStore;
-	/** Source of commit data from a VCS host. */
-	commitSource: CommitSource;
-	/** Account switcher for the `gh` CLI. */
-	accountManager: AccountManager;
-	/** Git operations used to write mirror commits. */
-	gitOps: GitOperations;
+  /** Account switcher for the `gh` CLI. */
+  accountManager: AccountManager;
+  /** Source of commit data from a VCS host. */
+  commitSource: CommitSource;
+  /** Source of configuration data. When omitted, a file loader is built from `SyncOptions.configPath`. */
+  configLoader?: ConfigLoader;
+  /** Git operations used to write mirror commits. */
+  gitOps: GitOperations;
+  /** Persistent state store. */
+  stateStore: StateStore;
 }
 
 /** Maximum number of push retry attempts before giving up. */
@@ -108,11 +107,11 @@ const MAX_PUSH_RETRIES = 2;
  * these is pointless — they require operator intervention.
  */
 const NON_RETRYABLE_PUSH_SIGNALS: readonly string[] = [
-	"unable to read",
-	"non-fast-forward",
-	"rejected",
-	"invalid upstream",
-	"does not appear to be a git repository",
+  'unable to read',
+  'non-fast-forward',
+  'rejected',
+  'invalid upstream',
+  'does not appear to be a git repository',
 ];
 
 /**
@@ -123,8 +122,8 @@ const NON_RETRYABLE_PUSH_SIGNALS: readonly string[] = [
  * @returns `true` when the failure is transient and a retry is worth attempting.
  */
 export function isRetryablePushError(message: string): boolean {
-	const lower = message.toLowerCase();
-	return !NON_RETRYABLE_PUSH_SIGNALS.some((signal) => lower.includes(signal));
+  const lower = message.toLowerCase();
+  return !NON_RETRYABLE_PUSH_SIGNALS.some((signal) => lower.includes(signal));
 }
 
 /**
@@ -133,7 +132,7 @@ export function isRetryablePushError(message: string): boolean {
  * @param ms - Duration in milliseconds.
  */
 function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -143,13 +142,13 @@ function sleep(ms: number): Promise<void> {
  * @returns Sorted array of {@link RepoBreakdown} entries (highest count first).
  */
 function buildRepoBreakdown(commits: { repo: string }[]): RepoBreakdown[] {
-	const counts = new Map<string, number>();
-	for (const c of commits) {
-		counts.set(c.repo, (counts.get(c.repo) ?? 0) + 1);
-	}
-	return Array.from(counts.entries())
-		.map(([repo, count]) => ({ repo, count }))
-		.sort((a, b) => b.count - a.count);
+  const counts = new Map<string, number>();
+  for (const c of commits) {
+    counts.set(c.repo, (counts.get(c.repo) ?? 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .map(([repo, count]) => ({ repo, count }))
+    .sort((a, b) => b.count - a.count);
 }
 
 /**
@@ -168,208 +167,208 @@ function buildRepoBreakdown(commits: { repo: string }[]): RepoBreakdown[] {
  * ```
  */
 export class SyncRunner {
-	private readonly deps: SyncDependencies;
+  private readonly deps: SyncDependencies;
 
-	/**
-	 * @param deps - Optional dependency overrides. Production defaults
-	 *   instantiate concrete classes directly (no convenience wrappers).
-	 */
-	constructor(deps?: Partial<SyncDependencies>) {
-		this.deps = {
-			configLoader: deps?.configLoader,
-			stateStore: deps?.stateStore ?? new FileStateStore(),
-			commitSource: deps?.commitSource ?? new GhCommitSource(),
-			accountManager: deps?.accountManager ?? new GhAccountManager(),
-			gitOps: deps?.gitOps ?? new SystemGitOperations(),
-		};
-	}
+  /**
+   * @param deps - Optional dependency overrides. Production defaults
+   *   instantiate concrete classes directly (no convenience wrappers).
+   */
+  constructor(deps?: Partial<SyncDependencies>) {
+    this.deps = {
+      configLoader: deps?.configLoader,
+      stateStore: deps?.stateStore ?? new FileStateStore(),
+      commitSource: deps?.commitSource ?? new GhCommitSource(),
+      accountManager: deps?.accountManager ?? new GhAccountManager(),
+      gitOps: deps?.gitOps ?? new SystemGitOperations(),
+    };
+  }
 
-	/**
-	 * Execute the sync cycle.
-	 *
-	 * @param options - Sync behaviour overrides.
-	 * @returns A {@link SyncResult} describing what happened.
-	 * @throws If the mirror repo path is not set (i.e., `mirror init` was never run).
-	 * @throws If any underlying git or GitHub operation fails.
-	 */
-	async run(options: SyncOptions = {}): Promise<SyncResult> {
-		const { stateStore, commitSource, accountManager, gitOps } = this.deps;
+  /**
+   * Execute the sync cycle.
+   *
+   * @param options - Sync behaviour overrides.
+   * @returns A {@link SyncResult} describing what happened.
+   * @throws If the mirror repo path is not set (i.e., `mirror init` was never run).
+   * @throws If any underlying git or GitHub operation fails.
+   */
+  async run(options: SyncOptions = {}): Promise<SyncResult> {
+    const { stateStore, commitSource, accountManager, gitOps } = this.deps;
 
-		const configLoader =
-			this.deps.configLoader ?? new FileConfigLoader(options.configPath);
+    const configLoader =
+      this.deps.configLoader ?? new FileConfigLoader(options.configPath);
 
-		const config = await configLoader.load();
-		const state = await stateStore.load();
+    const config = await configLoader.load();
+    const state = await stateStore.load();
 
-		if (!state.mirrorRepoPath) {
-			throw new Error("Mirror repo not initialized. Run `mirror init` first.");
-		}
+    if (!state.mirrorRepoPath) {
+      throw new Error('Mirror repo not initialized. Run `mirror init` first.');
+    }
 
-		const since = options.full
-			? undefined
-			: (options.since ?? state.lastSyncedAt);
-		const until = options.until;
+    const since = options.full
+      ? undefined
+      : (options.since ?? state.lastSyncedAt);
+    const until = options.until;
 
-		const rangeLabel = since
-			? until
-				? ` from ${since} to ${until}`
-				: ` since ${since}`
-			: until
-				? ` up to ${until}`
-				: " (full sync)";
-		console.log(
-			chalk.blue(`Fetching commits from ${config.workOrg}${rangeLabel}...`),
-		);
+    const rangeLabel = since
+      ? until
+        ? ` from ${since} to ${until}`
+        : ` since ${since}`
+      : until
+        ? ` up to ${until}`
+        : ' (full sync)';
+    console.log(
+      chalk.blue(`Fetching commits from ${config.workOrg}${rangeLabel}...`)
+    );
 
-		await accountManager.switchTo(config.workGhUser);
+    await accountManager.switchTo(config.workGhUser);
 
-		const commits = await commitSource.searchCommits(
-			config.workOrg,
-			config.workEmails,
-			since,
-			until,
-		);
+    const commits = await commitSource.searchCommits(
+      config.workOrg,
+      config.workEmails,
+      since,
+      until
+    );
 
-		const excluded = new Set(config.excludeRepos);
-		for (const repo of excluded) {
-			if (!repo.includes("/")) {
-				console.log(
-					chalk.yellow(
-						`Warning: excludeRepos entry "${repo}" should be in org/repo format`,
-					),
-				);
-			}
-		}
+    const excluded = new Set(config.excludeRepos);
+    for (const repo of excluded) {
+      if (!repo.includes('/')) {
+        console.log(
+          chalk.yellow(
+            `Warning: excludeRepos entry "${repo}" should be in org/repo format`
+          )
+        );
+      }
+    }
 
-		const alreadyMirrored = new Set(state.mirroredShas ?? []);
-		const filtered = commits.filter(
-			(c) => !excluded.has(c.repo) && !alreadyMirrored.has(c.sha),
-		);
+    const alreadyMirrored = new Set(state.mirroredShas ?? []);
+    const filtered = commits.filter(
+      (c) => !(excluded.has(c.repo) || alreadyMirrored.has(c.sha))
+    );
 
-		filtered.sort(
-			(a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-		);
+    filtered.sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
 
-		const repoBreakdown = buildRepoBreakdown(filtered);
+    const repoBreakdown = buildRepoBreakdown(filtered);
 
-		console.log(
-			chalk.blue(
-				`Found ${filtered.length} commits across ${repoBreakdown.length} repos:`,
-			),
-		);
-		for (const { repo, count } of repoBreakdown) {
-			const repoName = repo.includes("/") ? repo.split("/")[1] : repo;
-			console.log(chalk.gray(`  ${repoName}  ${count} commits`));
-		}
+    console.log(
+      chalk.blue(
+        `Found ${filtered.length} commits across ${repoBreakdown.length} repos:`
+      )
+    );
+    for (const { repo, count } of repoBreakdown) {
+      const repoName = repo.includes('/') ? repo.split('/')[1] : repo;
+      console.log(chalk.gray(`  ${repoName}  ${count} commits`));
+    }
 
-		if (options.dryRun) {
-			for (const c of filtered) {
-				const dateStr = new Date(c.date).toISOString().split("T")[0];
-				console.log(chalk.gray(`  Would mirror: ${dateStr}`));
-			}
-			return {
-				commitsFound: filtered.length,
-				commitsMirrored: 0,
-				dryRun: true,
-				since: since ?? null,
-				repoBreakdown,
-				totalMirrored: state.totalCommitsMirrored,
-			};
-		}
+    if (options.dryRun) {
+      for (const c of filtered) {
+        const dateStr = new Date(c.date).toISOString().split('T')[0];
+        console.log(chalk.gray(`  Would mirror: ${dateStr}`));
+      }
+      return {
+        commitsFound: filtered.length,
+        commitsMirrored: 0,
+        dryRun: true,
+        since: since ?? null,
+        repoBreakdown,
+        totalMirrored: state.totalCommitsMirrored,
+      };
+    }
 
-		if (filtered.length > 0) {
-			const discarded = await gitOps.ensureNotAhead(state.mirrorRepoPath);
-			if (discarded > 0) {
-				console.log(
-					chalk.yellow(
-						`Discarded ${discarded} local-only commits from a prior failed push before writing new ones.`,
-					),
-				);
-			}
-		}
+    if (filtered.length > 0) {
+      const discarded = await gitOps.ensureNotAhead(state.mirrorRepoPath);
+      if (discarded > 0) {
+        console.log(
+          chalk.yellow(
+            `Discarded ${discarded} local-only commits from a prior failed push before writing new ones.`
+          )
+        );
+      }
+    }
 
-		for (const c of filtered) {
-			await gitOps.createEmptyCommit(
-				state.mirrorRepoPath,
-				c.date,
-				config.personalEmail,
-				config.personalAccount,
-			);
-		}
+    for (const c of filtered) {
+      await gitOps.createEmptyCommit(
+        state.mirrorRepoPath,
+        c.date,
+        config.personalEmail,
+        config.personalAccount
+      );
+    }
 
-		if (filtered.length > 0) {
-			console.log(chalk.blue(`Pushing ${filtered.length} commits...`));
-			await accountManager.switchTo(config.personalAccount);
+    if (filtered.length > 0) {
+      console.log(chalk.blue(`Pushing ${filtered.length} commits...`));
+      await accountManager.switchTo(config.personalAccount);
 
-			await this.pushWithRetry(gitOps, state.mirrorRepoPath);
+      await this.pushWithRetry(gitOps, state.mirrorRepoPath);
 
-			await accountManager.switchTo(config.workGhUser);
-		}
+      await accountManager.switchTo(config.workGhUser);
+    }
 
-		const now = new Date().toISOString();
-		state.lastSyncedAt = now;
-		state.totalCommitsMirrored += filtered.length;
-		const shas = new Set(state.mirroredShas ?? []);
-		for (const c of filtered) {
-			shas.add(c.sha);
-		}
-		state.mirroredShas = Array.from(shas);
-		await stateStore.save(state);
+    const now = new Date().toISOString();
+    state.lastSyncedAt = now;
+    state.totalCommitsMirrored += filtered.length;
+    const shas = new Set(state.mirroredShas ?? []);
+    for (const c of filtered) {
+      shas.add(c.sha);
+    }
+    state.mirroredShas = Array.from(shas);
+    await stateStore.save(state);
 
-		console.log(
-			chalk.green(
-				`Mirrored ${filtered.length} commits. Total: ${state.totalCommitsMirrored}`,
-			),
-		);
+    console.log(
+      chalk.green(
+        `Mirrored ${filtered.length} commits. Total: ${state.totalCommitsMirrored}`
+      )
+    );
 
-		return {
-			commitsFound: filtered.length,
-			commitsMirrored: filtered.length,
-			dryRun: false,
-			since: since ?? null,
-			repoBreakdown,
-			totalMirrored: state.totalCommitsMirrored,
-		};
-	}
+    return {
+      commitsFound: filtered.length,
+      commitsMirrored: filtered.length,
+      dryRun: false,
+      since: since ?? null,
+      repoBreakdown,
+      totalMirrored: state.totalCommitsMirrored,
+    };
+  }
 
-	/**
-	 * Push with exponential backoff retry.
-	 *
-	 * @param gitOps - Git operations instance.
-	 * @param repoPath - Path to the local mirror repository.
-	 * @throws After all retries are exhausted.
-	 */
-	private async pushWithRetry(
-		gitOps: GitOperations,
-		repoPath: string,
-	): Promise<void> {
-		let lastError: Error | undefined;
-		for (let attempt = 0; attempt <= MAX_PUSH_RETRIES; attempt++) {
-			try {
-				await gitOps.push(repoPath);
-				return;
-			} catch (err) {
-				lastError = err instanceof Error ? err : new Error(String(err));
-				if (!isRetryablePushError(lastError.message)) {
-					throw new Error(
-						`Push failed with a non-retryable error. Run \`mirror repair\` to reconcile the local repo.\n${lastError.message}`,
-					);
-				}
-				if (attempt < MAX_PUSH_RETRIES) {
-					const delay = 1000 * 2 ** attempt;
-					console.log(
-						chalk.yellow(
-							`Push failed (attempt ${attempt + 1}/${MAX_PUSH_RETRIES + 1}), retrying in ${delay}ms...`,
-						),
-					);
-					await sleep(delay);
-				}
-			}
-		}
-		throw new Error(
-			`Push failed after ${MAX_PUSH_RETRIES + 1} attempts. Commits are written locally but not pushed.\n${lastError?.message}`,
-		);
-	}
+  /**
+   * Push with exponential backoff retry.
+   *
+   * @param gitOps - Git operations instance.
+   * @param repoPath - Path to the local mirror repository.
+   * @throws After all retries are exhausted.
+   */
+  private async pushWithRetry(
+    gitOps: GitOperations,
+    repoPath: string
+  ): Promise<void> {
+    let lastError: Error | undefined;
+    for (let attempt = 0; attempt <= MAX_PUSH_RETRIES; attempt++) {
+      try {
+        await gitOps.push(repoPath);
+        return;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (!isRetryablePushError(lastError.message)) {
+          throw new Error(
+            `Push failed with a non-retryable error. Run \`mirror repair\` to reconcile the local repo.\n${lastError.message}`
+          );
+        }
+        if (attempt < MAX_PUSH_RETRIES) {
+          const delay = 1000 * 2 ** attempt;
+          console.log(
+            chalk.yellow(
+              `Push failed (attempt ${attempt + 1}/${MAX_PUSH_RETRIES + 1}), retrying in ${delay}ms...`
+            )
+          );
+          await sleep(delay);
+        }
+      }
+    }
+    throw new Error(
+      `Push failed after ${MAX_PUSH_RETRIES + 1} attempts. Commits are written locally but not pushed.\n${lastError?.message}`
+    );
+  }
 }
 
 /**
@@ -380,5 +379,5 @@ export class SyncRunner {
  * @throws If the mirror repo is not initialised or an I/O operation fails.
  */
 export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
-	return new SyncRunner().run(options);
+  return new SyncRunner().run(options);
 }

@@ -1,14 +1,16 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
+    branches: [main]
+  push:
     branches: [main]
 
 jobs:
   ci:
+    name: Build, Test & Lint
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -19,16 +21,20 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - run: pnpm format:check
-        name: Format check
+      - name: Format check
+        run: pnpm biome check .
 
-      - run: pnpm lint
-        name: Lint
+      - name: Type check
+        run: pnpm exec tsc --noEmit
 
-      - run: pnpm test --run
-        name: Tests
+      - name: Test
+        run: pnpm test
 
-      - run: pnpm build
-        name: Build
+      - name: Audit (production)
+        run: pnpm audit --prod
+
+      - name: Build
+        run: pnpm build

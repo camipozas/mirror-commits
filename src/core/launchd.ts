@@ -1,7 +1,7 @@
-import { execFile } from "node:child_process";
-import { readFile, unlink, writeFile } from "node:fs/promises";
-import { promisify } from "node:util";
-import { LAUNCHD_LABEL, LAUNCHD_PLIST, LOG_FILE } from "@/src/lib/constants";
+import { execFile } from 'node:child_process';
+import { readFile, unlink, writeFile } from 'node:fs/promises';
+import { promisify } from 'node:util';
+import { LAUNCHD_LABEL, LAUNCHD_PLIST, LOG_FILE } from '@/src/lib/constants';
 
 const exec = promisify(execFile);
 
@@ -14,7 +14,7 @@ const exec = promisify(execFile);
  * @returns A valid macOS launchd plist XML string.
  */
 function generatePlist(hour: number, projectDir: string): string {
-	return `<?xml version="1.0" encoding="UTF-8"?>
+  return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -65,20 +65,20 @@ function generatePlist(hour: number, projectDir: string): string {
  * ```
  */
 export async function installSchedule(
-	hour: number,
-	projectDir: string,
+  hour: number,
+  projectDir: string
 ): Promise<string> {
-	const plist = generatePlist(hour, projectDir);
-	await writeFile(LAUNCHD_PLIST, plist);
+  const plist = generatePlist(hour, projectDir);
+  await writeFile(LAUNCHD_PLIST, plist);
 
-	try {
-		await exec("launchctl", ["unload", LAUNCHD_PLIST]);
-	} catch {
-		// Not loaded yet — expected on first install
-	}
-	await exec("launchctl", ["load", LAUNCHD_PLIST]);
+  try {
+    await exec('launchctl', ['unload', LAUNCHD_PLIST]);
+  } catch {
+    // Not loaded yet — expected on first install
+  }
+  await exec('launchctl', ['load', LAUNCHD_PLIST]);
 
-	return `Installed launchd plist at ${LAUNCHD_PLIST}. Runs daily at ${hour}:00.`;
+  return `Installed launchd plist at ${LAUNCHD_PLIST}. Runs daily at ${hour}:00.`;
 }
 
 /**
@@ -97,17 +97,17 @@ export async function installSchedule(
  * ```
  */
 export async function removeSchedule(): Promise<string> {
-	try {
-		await exec("launchctl", ["unload", LAUNCHD_PLIST]);
-	} catch {
-		// Not currently loaded
-	}
-	try {
-		await unlink(LAUNCHD_PLIST);
-	} catch {
-		// File does not exist
-	}
-	return "Removed launchd schedule.";
+  try {
+    await exec('launchctl', ['unload', LAUNCHD_PLIST]);
+  } catch {
+    // Not currently loaded
+  }
+  try {
+    await unlink(LAUNCHD_PLIST);
+  } catch {
+    // File does not exist
+  }
+  return 'Removed launchd schedule.';
 }
 
 /**
@@ -130,20 +130,20 @@ export async function removeSchedule(): Promise<string> {
  * ```
  */
 export async function scheduleStatus(): Promise<string> {
-	try {
-		const content = await readFile(LAUNCHD_PLIST, "utf-8");
-		const hourMatch = content.match(
-			/<key>Hour<\/key>\s*<integer>(\d+)<\/integer>/,
-		);
-		const hour = hourMatch ? hourMatch[1] : "unknown";
+  try {
+    const content = await readFile(LAUNCHD_PLIST, 'utf-8');
+    const hourMatch = content.match(
+      /<key>Hour<\/key>\s*<integer>(\d+)<\/integer>/
+    );
+    const hour = hourMatch ? hourMatch[1] : 'unknown';
 
-		try {
-			const { stdout } = await exec("launchctl", ["list", LAUNCHD_LABEL]);
-			return `Schedule active. Runs daily at ${hour}:00.\n${stdout}`;
-		} catch {
-			return `Plist exists (${hour}:00) but not loaded. Run install to activate.`;
-		}
-	} catch {
-		return "No schedule installed.";
-	}
+    try {
+      const { stdout } = await exec('launchctl', ['list', LAUNCHD_LABEL]);
+      return `Schedule active. Runs daily at ${hour}:00.\n${stdout}`;
+    } catch {
+      return `Plist exists (${hour}:00) but not loaded. Run install to activate.`;
+    }
+  } catch {
+    return 'No schedule installed.';
+  }
 }

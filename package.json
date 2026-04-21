@@ -1,45 +1,46 @@
 {
-	"name": "mirror-commits",
-	"version": "1.0.0",
-	"description": "Mirror work GitHub contributions to personal profile",
-	"type": "module",
-	"bin": {
-		"mirror-commits": "./bin/mirror"
-	},
-	"scripts": {
-		"mirror": "tsx src/cli/index.ts",
-		"mcp": "tsx src/mcp/index.ts",
-		"dev": "next dev",
-		"build": "next build",
-		"format": "biome format --write .",
-		"format:check": "biome format .",
-		"lint": "biome check .",
-		"lint:fix": "biome check --write .",
-		"test": "vitest"
-	},
-	"author": "camipozas (https://github.com/camipozas)",
-	"license": "MIT",
-	"packageManager": "pnpm@10.32.1",
-	"dependencies": {
-		"@modelcontextprotocol/sdk": "^1.27.1",
-		"@tailwindcss/postcss": "^4.2.1",
-		"chalk": "^5.6.2",
-		"commander": "^14.0.3",
-		"lucide-react": "^0.577.0",
-		"next": "^16.1.6",
-		"react": "^19.2.4",
-		"react-dom": "^19.2.4",
-		"tailwindcss": "^4.2.1",
-		"zod": "^4.3.6"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "^2.4.6",
-		"@types/node": "^25.5.0",
-		"@types/react": "^19.2.14",
-		"@types/react-dom": "^19.2.3",
-		"postcss": "^8.5.8",
-		"tsx": "^4.21.0",
-		"typescript": "^5.9.3",
-		"vitest": "^4.1.0"
-	}
+  "name": "mirror-commits",
+  "version": "1.0.0",
+  "description": "Mirror work GitHub contributions to personal profile",
+  "type": "module",
+  "bin": {
+    "mirror-commits": "./bin/mirror"
+  },
+  "scripts": {
+    "mirror": "tsx src/cli/index.ts",
+    "mcp": "tsx src/mcp/index.ts",
+    "dev": "next dev",
+    "build": "next build",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "vitest run"
+  },
+  "author": "camipozas (https://github.com/camipozas)",
+  "license": "MIT",
+  "packageManager": "pnpm@10.32.1",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@tailwindcss/postcss": "^4.2.1",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "lucide-react": "^0.577.0",
+    "next": "^16.2.3",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.6",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "postcss": "^8.5.8",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "ultracite": "^7.6.0",
+    "vitest": "^4.1.0"
+  }
 }

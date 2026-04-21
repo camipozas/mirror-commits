@@ -1,7 +1,7 @@
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
-import { CONFIG_FILE } from "@/src/lib/constants";
-import { type Config, configSchema } from "@/src/lib/schema";
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { CONFIG_FILE } from '@/src/lib/constants';
+import { type Config, configSchema } from '@/src/lib/schema';
 
 /**
  * Abstraction for a configuration source.
@@ -10,13 +10,13 @@ import { type Config, configSchema } from "@/src/lib/schema";
  * changing the consumers — satisfying the Dependency Inversion principle.
  */
 export interface ConfigLoader {
-	/**
-	 * Load and return a validated {@link Config}.
-	 *
-	 * @returns A promise that resolves to the validated configuration.
-	 * @throws If the file cannot be read or its contents fail schema validation.
-	 */
-	load(): Promise<Config>;
+  /**
+   * Load and return a validated {@link Config}.
+   *
+   * @returns A promise that resolves to the validated configuration.
+   * @throws If the file cannot be read or its contents fail schema validation.
+   */
+  load(): Promise<Config>;
 }
 
 /**
@@ -33,22 +33,22 @@ export interface ConfigLoader {
  * ```
  */
 export class FileConfigLoader implements ConfigLoader {
-	private readonly configPath: string;
+  private readonly configPath: string;
 
-	/**
-	 * @param configPath - Path to the config JSON file. Defaults to
-	 *   `mirror.config.json` in the current working directory.
-	 */
-	constructor(configPath?: string) {
-		this.configPath = resolve(configPath ?? CONFIG_FILE);
-	}
+  /**
+   * @param configPath - Path to the config JSON file. Defaults to
+   *   `mirror.config.json` in the current working directory.
+   */
+  constructor(configPath?: string) {
+    this.configPath = resolve(configPath ?? CONFIG_FILE);
+  }
 
-	/** {@inheritDoc ConfigLoader.load} */
-	async load(): Promise<Config> {
-		const raw = await readFile(this.configPath, "utf-8");
-		const json = JSON.parse(raw);
-		return configSchema.parse(json);
-	}
+  /** {@inheritDoc ConfigLoader.load} */
+  async load(): Promise<Config> {
+    const raw = await readFile(this.configPath, 'utf-8');
+    const json = JSON.parse(raw);
+    return configSchema.parse(json);
+  }
 }
 
 /**
@@ -66,5 +66,5 @@ export class FileConfigLoader implements ConfigLoader {
  * ```
  */
 export async function loadConfig(configPath?: string): Promise<Config> {
-	return new FileConfigLoader(configPath).load();
+  return new FileConfigLoader(configPath).load();
 }
