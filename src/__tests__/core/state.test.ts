@@ -47,6 +47,7 @@ describe("FileStateStore", () => {
 			lastSyncedAt: "2026-03-13T12:00:00Z",
 			totalCommitsMirrored: 5,
 			mirrorRepoPath: "/tmp/test-mirror",
+			mirroredShas: [],
 		});
 
 		const state = await store.load();
@@ -62,6 +63,7 @@ describe("FileStateStore", () => {
 			lastSyncedAt: null,
 			totalCommitsMirrored: 0,
 			mirrorRepoPath: "",
+			mirroredShas: [],
 		});
 
 		const state = await store.load();
