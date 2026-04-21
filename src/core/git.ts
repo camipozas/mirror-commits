@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { basename, dirname } from "node:path";
 import { promisify } from "node:util";
 import { DEFAULT_COMMIT_MSG } from "@/src/lib/constants";
 
@@ -93,6 +94,50 @@ export interface GitOperations {
 	 * @returns The commit count, or `0` if the repository has no commits yet.
 	 */
 	commitCount(repoPath: string): Promise<number>;
+
+	/**
+	 * Ensure the local mirror repo is not ahead of `origin/main`. When prior
+	 * pushes failed, unsynced local commits accumulate and eventually break
+	 * future pushes (non-fast-forward or missing objects). Implementations
+	 * should fetch `origin`, detect the drift, and hard-reset back to the
+	 * remote tip when ahead. No-op for implementations without a local
+	 * working tree (e.g. API-backed git).
+	 *
+	 * @param repoPath - Absolute path or identifier of the repository.
+	 * @returns Number of local-only commits that were discarded (0 when clean).
+	 */
+	ensureNotAhead(repoPath: string): Promise<number>;
+
+	/**
+	 * Run `git fsck --full` and return a health report. Used by the `repair`
+	 * command to detect corruption before deciding to re-clone. No-op
+	 * implementations return `{ ok: true, errors: [] }`.
+	 *
+	 * @param repoPath - Absolute path to the local repository.
+	 * @returns Report with `ok: false` when fsck surfaced any errors.
+	 */
+	fsck(repoPath: string): Promise<FsckReport>;
+
+	/**
+	 * Wipe the local repository and clone it fresh from `remoteUrl`. Used by
+	 * the `repair` command to recover from a corrupt object store when the
+	 * authoritative state lives in `origin`. No-op implementations that do
+	 * not manage a local working tree should throw.
+	 *
+	 * @param repoPath - Absolute path where the repository should be cloned.
+	 * @param remoteUrl - Remote URL to clone from.
+	 */
+	reclone(repoPath: string, remoteUrl: string): Promise<void>;
+}
+
+/**
+ * Result of a `git fsck --full` run.
+ */
+export interface FsckReport {
+	/** `true` when fsck reported no errors or warnings. */
+	ok: boolean;
+	/** Lines from stderr that were flagged (empty when `ok` is `true`). */
+	errors: string[];
 }
 
 /**
@@ -198,5 +243,69 @@ export class SystemGitOperations implements GitOperations {
 			);
 			return 0;
 		}
+	}
+
+	/** {@inheritDoc GitOperations.ensureNotAhead} */
+	async ensureNotAhead(repoPath: string): Promise<number> {
+		try {
+			await git(["fetch", "origin", "main"], repoPath);
+		} catch {
+			// No remote yet, or network down: treat as clean. The actual push
+			// attempt will surface a more specific error.
+			return 0;
+		}
+
+		let ahead = 0;
+		try {
+			const raw = await git(
+				["rev-list", "--count", "origin/main..HEAD"],
+				repoPath,
+			);
+			ahead = Number.parseInt(raw, 10) || 0;
+		} catch {
+			return 0;
+		}
+
+		if (ahead > 0) {
+			await git(["reset", "--hard", "origin/main"], repoPath);
+		}
+		return ahead;
+	}
+
+	/** {@inheritDoc GitOperations.fsck} */
+	async fsck(repoPath: string): Promise<FsckReport> {
+		try {
+			await exec("git", ["fsck", "--full", "--strict"], {
+				cwd: repoPath,
+				env: process.env,
+			});
+			return { ok: true, errors: [] };
+		} catch (err) {
+			const stderr =
+				err && typeof err === "object" && "stderr" in err
+					? String((err as { stderr: unknown }).stderr ?? "")
+					: err instanceof Error
+						? err.message
+						: String(err);
+			const errors = stderr
+				.split("\n")
+				.map((line) => line.trim())
+				.filter((line) => line.length > 0);
+			return { ok: errors.length === 0, errors };
+		}
+	}
+
+	/** {@inheritDoc GitOperations.reclone} */
+	async reclone(repoPath: string, remoteUrl: string): Promise<void> {
+		await rm(repoPath, { recursive: true, force: true });
+		const parent = dirname(repoPath);
+		const target = basename(repoPath);
+		await mkdir(parent, { recursive: true });
+		await git(["clone", remoteUrl, target], parent);
+		await git(
+			["config", "user.email", "mirror-commits@noreply.github.com"],
+			repoPath,
+		);
+		await git(["config", "user.name", "mirror-commits"], repoPath);
 	}
 }

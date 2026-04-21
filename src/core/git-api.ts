@@ -1,4 +1,4 @@
-import type { GitOperations } from "@/src/core/git";
+import type { FsckReport, GitOperations } from "@/src/core/git";
 import { DEFAULT_COMMIT_MSG } from "@/src/lib/constants";
 import type { GitHubClient } from "@/src/lib/github-api";
 
@@ -148,5 +148,29 @@ export class ApiGitOperations implements GitOperations {
 		// Not reliably available via API without pagination; return 0.
 		// Status tool derives count from state instead.
 		return 0;
+	}
+
+	/**
+	 * No-op: remote-mode git has no local working tree, so there are no
+	 * unpushed commits to reconcile.
+	 */
+	async ensureNotAhead(): Promise<number> {
+		return 0;
+	}
+
+	/**
+	 * No-op: remote-mode git trusts GitHub's object store.
+	 */
+	async fsck(): Promise<FsckReport> {
+		return { ok: true, errors: [] };
+	}
+
+	/**
+	 * Not applicable for API-backed git — there's nothing local to re-clone.
+	 */
+	async reclone(): Promise<void> {
+		throw new Error(
+			"reclone is not supported in remote mode. Run `mirror repair` locally.",
+		);
 	}
 }

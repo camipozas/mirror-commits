@@ -100,6 +100,93 @@ export interface CommitInfo {
 	repo: string;
 }
 
+/** GitHub Search API caps any single query at this many results. */
+export const SEARCH_RESULT_CAP = 1000;
+
+/**
+ * Detect whether an error from GitHub's search endpoint indicates that the
+ * caller hit the 1000-result cap (HTTP 422 with the well-known message).
+ *
+ * @param err - Error thrown by `gh api` or {@link GitHubClient}.
+ * @returns `true` when the error matches the cap signature.
+ */
+export function isSearchCapError(err: unknown): boolean {
+	const message =
+		err instanceof Error
+			? err.message
+			: typeof err === "string"
+				? err
+				: String(err);
+	return (
+		message.includes("Only the first 1000 search results") ||
+		(message.includes("422") && message.includes("/search/commits"))
+	);
+}
+
+/**
+ * Format a `Date` as `YYYY-MM-DD` for the GitHub search `committer-date:`
+ * qualifier.
+ *
+ * @param date - Date to format.
+ * @returns ISO date (UTC) with no time component.
+ */
+export function toSearchDate(date: Date): string {
+	return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Recursively bisect a `[start, end]` date window whenever a single search
+ * query returns {@link SEARCH_RESULT_CAP} results (or the API answers 422).
+ * Uses day-level granularity; single-day windows that still overflow are
+ * surfaced as errors — the caller must widen the exclusion list.
+ *
+ * @param runRange - Function that runs a single `committer-date:start..end`
+ *   query and returns its commits.
+ * @param start - ISO date (YYYY-MM-DD) for the lower bound (inclusive).
+ * @param end - ISO date (YYYY-MM-DD) for the upper bound (inclusive).
+ * @returns Flat list of commits across all sub-ranges.
+ */
+export async function searchWithAutoChunk(
+	runRange: (dateFilter: string) => Promise<CommitInfo[]>,
+	start: string,
+	end: string,
+): Promise<CommitInfo[]> {
+	const filter = `committer-date:${start}..${end}`;
+	let results: CommitInfo[] | null = null;
+	let hitCap = false;
+	try {
+		results = await runRange(filter);
+		hitCap = results.length >= SEARCH_RESULT_CAP;
+	} catch (err) {
+		if (!isSearchCapError(err)) throw err;
+		hitCap = true;
+	}
+
+	if (!hitCap && results) return results;
+
+	const startDate = new Date(`${start}T00:00:00Z`);
+	const endDate = new Date(`${end}T00:00:00Z`);
+	if (startDate >= endDate) {
+		throw new Error(
+			`GitHub search returned >= ${SEARCH_RESULT_CAP} results for a single day (${start}). Add noisy repos to excludeRepos and retry.`,
+		);
+	}
+
+	const midMs =
+		startDate.getTime() + (endDate.getTime() - startDate.getTime()) / 2;
+	const mid = new Date(midMs);
+	const midDate = toSearchDate(mid);
+	const nextDate = toSearchDate(new Date(mid.getTime() + 86_400_000));
+
+	const rightStart = nextDate <= end ? nextDate : end;
+
+	const [left, right] = await Promise.all([
+		searchWithAutoChunk(runRange, start, midDate),
+		searchWithAutoChunk(runRange, rightStart, end),
+	]);
+	return [...left, ...right];
+}
+
 /**
  * Contract for a source that can provide commit history.
  *
@@ -114,6 +201,7 @@ export interface CommitSource {
 	 * @param org - GitHub organisation to search within.
 	 * @param emails - Author email addresses to match.
 	 * @param since - Optional ISO date string; only return commits after this date.
+	 * @param until - Optional ISO date string; only return commits before this date.
 	 * @returns An array of matching {@link CommitInfo} objects (may be empty).
 	 * @throws If the underlying API call fails.
 	 */
@@ -121,6 +209,7 @@ export interface CommitSource {
 		org: string,
 		emails: string[],
 		since?: string | null,
+		until?: string | null,
 	): Promise<CommitInfo[]>;
 
 	/**
@@ -201,6 +290,7 @@ export class GhCommitSource implements CommitSource {
 		org: string,
 		emails: string[],
 		since?: string | null,
+		until?: string | null,
 	): Promise<CommitInfo[]> {
 		const seen = new Set<string>();
 		const commits: CommitInfo[] = [];
@@ -215,41 +305,38 @@ export class GhCommitSource implements CommitSource {
 		};
 
 		for (const email of emails) {
-			if (since) {
-				const results = await this.searchRange(
-					org,
-					email,
-					`committer-date:>${since}`,
-				);
+			const runRange = (dateFilter: string) =>
+				this.searchRange(org, email, dateFilter);
+
+			if (since || until) {
+				const start = since ? toSearchDate(new Date(since)) : "2008-01-01";
+				const end = until
+					? toSearchDate(new Date(until))
+					: toSearchDate(new Date());
+				const results = await searchWithAutoChunk(runRange, start, end);
 				addUnique(results);
+				continue;
+			}
+
+			const probe = await runRange("");
+			if (probe.length < SEARCH_RESULT_CAP) {
+				addUnique(probe);
 			} else {
-				const probe = await this.searchRange(org, email, "");
+				const currentYear = new Date().getFullYear();
+				const years = Array.from(
+					{ length: currentYear - 2008 + 1 },
+					(_, i) => 2008 + i,
+				);
 
-				if (probe.length < 1000) {
-					addUnique(probe);
-				} else {
-					const currentYear = new Date().getFullYear();
-					const years = Array.from(
-						{ length: currentYear - 2008 + 1 },
-						(_, i) => 2008 + i,
+				const concurrency = 3;
+				for (let i = 0; i < years.length; i += concurrency) {
+					const batch = years.slice(i, i + concurrency);
+					const results = await Promise.all(
+						batch.map((year) =>
+							searchWithAutoChunk(runRange, `${year}-01-01`, `${year}-12-31`),
+						),
 					);
-
-					const concurrency = 3;
-					for (let i = 0; i < years.length; i += concurrency) {
-						const batch = years.slice(i, i + concurrency);
-						const results = await Promise.all(
-							batch.map((year) =>
-								this.searchRange(
-									org,
-									email,
-									`committer-date:${year}-01-01..${year}-12-31`,
-								),
-							),
-						);
-						for (const r of results) {
-							addUnique(r);
-						}
-					}
+					for (const r of results) addUnique(r);
 				}
 			}
 		}
