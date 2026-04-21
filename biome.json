@@ -5,7 +5,14 @@
     "ultracite/biome/next"
   ],
   "files": {
-    "includes": ["**", "!.next", "!node_modules", "!dist", "!work-mirror"]
+    "includes": [
+      "**",
+      "!.next",
+      "!node_modules",
+      "!dist",
+      "!work-mirror",
+      "!next-env.d.ts"
+    ]
   },
   "linter": {
     "rules": {
