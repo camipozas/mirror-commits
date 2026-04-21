@@ -4,6 +4,7 @@ import { registerConfigTool } from "@/src/mcp/tools/config";
 import { registerInitTool } from "@/src/mcp/tools/init";
 import { registerListReposTool } from "@/src/mcp/tools/list-repos";
 import { registerLogTool } from "@/src/mcp/tools/log";
+import { registerRepairTool } from "@/src/mcp/tools/repair";
 import { registerScheduleTool } from "@/src/mcp/tools/schedule";
 import { registerStatusTool } from "@/src/mcp/tools/status";
 import { registerSyncTool } from "@/src/mcp/tools/sync";
@@ -27,6 +28,7 @@ export function createMcpServer(deps: MirrorDeps): McpServer {
 	registerStatusTool(server, deps);
 	registerListReposTool(server, deps);
 	registerConfigTool(server, deps);
+	registerRepairTool(server, deps);
 
 	if (!deps.remote) {
 		registerLogTool(server);

@@ -1,4 +1,11 @@
-import { access, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import {
+	access,
+	copyFile,
+	mkdir,
+	readFile,
+	rename,
+	writeFile,
+} from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { LEGACY_STATE_DIR, STATE_FILE } from "@/src/lib/constants";
 import { type State, stateSchema } from "@/src/lib/schema";
@@ -49,20 +56,32 @@ async function fileExists(path: string): Promise<boolean> {
 }
 
 /**
- * Migrate state from the legacy `~/Documents/other/mirror-commits/state.json`
- * path to the new XDG-compliant location. Only runs once — if the new file
- * already exists the migration is a no-op.
+ * Migrate state from a legacy path to a new location. Only runs when the new
+ * file is missing and the legacy file exists. After a successful copy the
+ * legacy file is renamed to `${legacyFile}.migrated` so it does not surface
+ * stale data during future diagnosis.
  *
- * @param newStateFile - Absolute path to the XDG state file.
+ * @param newStateFile - Absolute path where the migrated state should live.
+ * @param legacyStateFile - Absolute path to the legacy state file. Defaults to
+ *   `~/Documents/other/mirror-commits/state.json` for production use.
  */
-async function migrateFromLegacyPath(newStateFile: string): Promise<void> {
+export async function migrateFromLegacyPath(
+	newStateFile: string,
+	legacyStateFile: string = join(LEGACY_STATE_DIR, "state.json"),
+): Promise<void> {
 	if (await fileExists(newStateFile)) return;
-
-	const legacyStateFile = join(LEGACY_STATE_DIR, "state.json");
 	if (!(await fileExists(legacyStateFile))) return;
 
 	await mkdir(dirname(newStateFile), { recursive: true });
 	await copyFile(legacyStateFile, newStateFile);
+
+	const migratedMarker = `${legacyStateFile}.migrated`;
+	try {
+		await rename(legacyStateFile, migratedMarker);
+	} catch {
+		// Non-fatal: the copy already succeeded; leaving the legacy file in
+		// place is preferable to failing the load.
+	}
 }
 
 /**

@@ -47,6 +47,9 @@ function createMockDeps() {
 		createEmptyCommit: vi.fn().mockResolvedValue(undefined),
 		push: vi.fn().mockResolvedValue(undefined),
 		commitCount: vi.fn().mockResolvedValue(0),
+		ensureNotAhead: vi.fn().mockResolvedValue(0),
+		fsck: vi.fn().mockResolvedValue({ ok: true, errors: [] }),
+		reclone: vi.fn().mockResolvedValue(undefined),
 	};
 
 	return { configLoader, stateStore, commitSource, accountManager, gitOps };
@@ -225,5 +228,69 @@ describe("SyncRunner", () => {
 
 		const savedState = vi.mocked(deps.stateStore.save).mock.calls[0][0];
 		expect(savedState.mirroredShas).toContain("aaa111");
+	});
+
+	it("resets orphan local commits before creating new ones", async () => {
+		const deps = createMockDeps();
+		vi.mocked(deps.commitSource.searchCommits).mockResolvedValue([
+			{ sha: "aaa111", date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
+		]);
+		vi.mocked(deps.gitOps.ensureNotAhead).mockResolvedValue(7);
+
+		const runner = new SyncRunner(deps);
+		await runner.run();
+
+		const ensureOrder = vi.mocked(deps.gitOps.ensureNotAhead).mock
+			.invocationCallOrder[0];
+		const createOrder = vi.mocked(deps.gitOps.createEmptyCommit).mock
+			.invocationCallOrder[0];
+		expect(ensureOrder).toBeLessThan(createOrder);
+		expect(deps.gitOps.ensureNotAhead).toHaveBeenCalledWith("/tmp/fake-repo");
+	});
+
+	it("skips ensureNotAhead when there is nothing to sync", async () => {
+		const deps = createMockDeps();
+		vi.mocked(deps.commitSource.searchCommits).mockResolvedValue([]);
+
+		const runner = new SyncRunner(deps);
+		await runner.run();
+
+		expect(deps.gitOps.ensureNotAhead).not.toHaveBeenCalled();
+	});
+
+	it("fails fast on non-retryable push errors", async () => {
+		const deps = createMockDeps();
+		vi.mocked(deps.commitSource.searchCommits).mockResolvedValue([
+			{ sha: "aaa111", date: "2025-06-15T10:00:00Z", repo: "test-org/repo-a" },
+		]);
+		vi.mocked(deps.gitOps.push).mockRejectedValue(
+			new Error(
+				"git push -u origin main failed: fatal: unable to read 40fdeeca",
+			),
+		);
+
+		const runner = new SyncRunner(deps);
+		await expect(runner.run()).rejects.toThrow("non-retryable");
+		expect(deps.gitOps.push).toHaveBeenCalledTimes(1);
+		expect(deps.stateStore.save).not.toHaveBeenCalled();
+	});
+
+	it("passes until through to commitSource", async () => {
+		const deps = createMockDeps();
+		vi.mocked(deps.commitSource.searchCommits).mockResolvedValue([]);
+
+		const runner = new SyncRunner(deps);
+		await runner.run({
+			since: "2026-01-01",
+			until: "2026-03-01",
+			dryRun: true,
+		});
+
+		expect(deps.commitSource.searchCommits).toHaveBeenCalledWith(
+			"test-org",
+			["test@example.com"],
+			"2026-01-01",
+			"2026-03-01",
+		);
 	});
 });

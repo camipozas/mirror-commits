@@ -1,8 +1,11 @@
-import type {
-	AccountManager,
-	CommitInfo,
-	CommitSource,
-	RepoManager,
+import {
+	type AccountManager,
+	type CommitInfo,
+	type CommitSource,
+	type RepoManager,
+	SEARCH_RESULT_CAP,
+	searchWithAutoChunk,
+	toSearchDate,
 } from "@/src/core/github";
 import type { GitHubClient } from "@/src/lib/github-api";
 
@@ -110,6 +113,7 @@ export class ApiCommitSource implements CommitSource {
 		org: string,
 		emails: string[],
 		since?: string | null,
+		until?: string | null,
 	): Promise<CommitInfo[]> {
 		const seen = new Set<string>();
 		const commits: CommitInfo[] = [];
@@ -124,24 +128,31 @@ export class ApiCommitSource implements CommitSource {
 		};
 
 		for (const email of emails) {
-			if (since) {
-				const results = await this.searchRange(
-					org,
-					email,
-					`committer-date:>${since}`,
-				);
+			const runRange = (dateFilter: string) =>
+				this.searchRange(org, email, dateFilter);
+
+			if (since || until) {
+				const start = since ? toSearchDate(new Date(since)) : "2008-01-01";
+				const end = until
+					? toSearchDate(new Date(until))
+					: toSearchDate(new Date());
+				const results = await searchWithAutoChunk(runRange, start, end);
 				addUnique(results);
+				continue;
+			}
+
+			const probe = await runRange("");
+			if (probe.length < SEARCH_RESULT_CAP) {
+				addUnique(probe);
 			} else {
-				const probe = await this.searchRange(org, email, "");
-				if (probe.length < 1000) {
-					addUnique(probe);
-				} else {
-					const currentYear = new Date().getFullYear();
-					for (let year = 2008; year <= currentYear; year++) {
-						const dateFilter = `committer-date:${year}-01-01..${year}-12-31`;
-						const yearCommits = await this.searchRange(org, email, dateFilter);
-						addUnique(yearCommits);
-					}
+				const currentYear = new Date().getFullYear();
+				for (let year = 2008; year <= currentYear; year++) {
+					const yearCommits = await searchWithAutoChunk(
+						runRange,
+						`${year}-01-01`,
+						`${year}-12-31`,
+					);
+					addUnique(yearCommits);
 				}
 			}
 		}

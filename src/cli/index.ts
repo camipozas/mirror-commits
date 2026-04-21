@@ -14,6 +14,7 @@ import {
 	removeSchedule,
 	scheduleStatus,
 } from "@/src/core/launchd";
+import { repair } from "@/src/core/repair";
 import { loadState } from "@/src/core/state";
 import { sync } from "@/src/core/sync";
 
@@ -130,6 +131,7 @@ program
 	.option("--full", "Full re-sync (ignore last cursor)", false)
 	.option("--dry-run", "Preview commits without creating them", false)
 	.option("--since <date>", "Sync commits after this date (ISO)")
+	.option("--until <date>", "Sync commits before this date (ISO)")
 	.option("--config <path>", "Config file path")
 	.action(async (opts) => {
 		try {
@@ -137,6 +139,7 @@ program
 				full: opts.full,
 				dryRun: opts.dryRun,
 				since: opts.since,
+				until: opts.until,
 				configPath: opts.config,
 			});
 			if (result.dryRun) {
@@ -191,6 +194,43 @@ program
 			}
 		} catch (err) {
 			console.error(chalk.red(`Status failed: ${err}`));
+			process.exit(1);
+		}
+	});
+
+program
+	.command("repair")
+	.description(
+		"Self-heal the mirror repo: discard orphan local commits, run git fsck, and re-clone from origin on corruption",
+	)
+	.option("--force", "Skip the fsck probe and re-clone unconditionally", false)
+	.option("--config <path>", "Config file path")
+	.action(async (opts) => {
+		try {
+			const result = await repair({
+				force: opts.force,
+				configPath: opts.config,
+			});
+
+			if (result.discardedAhead > 0) {
+				console.log(
+					chalk.yellow(
+						`  Discarded ${result.discardedAhead} orphan local commits.`,
+					),
+				);
+			}
+			if (result.recloned) {
+				console.log(
+					chalk.yellow(`  Re-cloned mirror repo from ${result.remoteUrl}.`),
+				);
+			}
+			if (!result.discardedAhead && !result.recloned) {
+				console.log(chalk.green("  Mirror repo is healthy."));
+			} else {
+				console.log(chalk.green("  Repair complete."));
+			}
+		} catch (err) {
+			console.error(chalk.red(`Repair failed: ${err}`));
 			process.exit(1);
 		}
 	});

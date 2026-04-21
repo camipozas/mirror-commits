@@ -36,6 +36,13 @@ export interface SyncOptions {
 	since?: string;
 
 	/**
+	 * Upper bound for the search window (exclusive). Paired with `since` to
+	 * chunk around the GitHub Search API's 1000-result cap. When omitted the
+	 * search runs up to "now".
+	 */
+	until?: string;
+
+	/**
 	 * Path to the config JSON file. Defaults to `mirror.config.json` in the
 	 * current working directory.
 	 */
@@ -94,6 +101,31 @@ export interface SyncDependencies {
 
 /** Maximum number of push retry attempts before giving up. */
 const MAX_PUSH_RETRIES = 2;
+
+/**
+ * Substrings that identify push failures caused by local repository state
+ * (corrupt objects, non-fast-forward rejections, missing upstream). Retrying
+ * these is pointless — they require operator intervention.
+ */
+const NON_RETRYABLE_PUSH_SIGNALS: readonly string[] = [
+	"unable to read",
+	"non-fast-forward",
+	"rejected",
+	"invalid upstream",
+	"does not appear to be a git repository",
+];
+
+/**
+ * Classify a push error message as retryable or not. Anything matching a
+ * {@link NON_RETRYABLE_PUSH_SIGNALS} substring is considered terminal.
+ *
+ * @param message - Error message from the underlying git operation.
+ * @returns `true` when the failure is transient and a retry is worth attempting.
+ */
+export function isRetryablePushError(message: string): boolean {
+	const lower = message.toLowerCase();
+	return !NON_RETRYABLE_PUSH_SIGNALS.some((signal) => lower.includes(signal));
+}
 
 /**
  * Sleep for the given number of milliseconds.
@@ -176,11 +208,17 @@ export class SyncRunner {
 		const since = options.full
 			? undefined
 			: (options.since ?? state.lastSyncedAt);
+		const until = options.until;
 
+		const rangeLabel = since
+			? until
+				? ` from ${since} to ${until}`
+				: ` since ${since}`
+			: until
+				? ` up to ${until}`
+				: " (full sync)";
 		console.log(
-			chalk.blue(
-				`Fetching commits from ${config.workOrg}${since ? ` since ${since}` : " (full sync)"}...`,
-			),
+			chalk.blue(`Fetching commits from ${config.workOrg}${rangeLabel}...`),
 		);
 
 		await accountManager.switchTo(config.workGhUser);
@@ -189,6 +227,7 @@ export class SyncRunner {
 			config.workOrg,
 			config.workEmails,
 			since,
+			until,
 		);
 
 		const excluded = new Set(config.excludeRepos);
@@ -236,6 +275,17 @@ export class SyncRunner {
 				repoBreakdown,
 				totalMirrored: state.totalCommitsMirrored,
 			};
+		}
+
+		if (filtered.length > 0) {
+			const discarded = await gitOps.ensureNotAhead(state.mirrorRepoPath);
+			if (discarded > 0) {
+				console.log(
+					chalk.yellow(
+						`Discarded ${discarded} local-only commits from a prior failed push before writing new ones.`,
+					),
+				);
+			}
 		}
 
 		for (const c of filtered) {
@@ -300,6 +350,11 @@ export class SyncRunner {
 				return;
 			} catch (err) {
 				lastError = err instanceof Error ? err : new Error(String(err));
+				if (!isRetryablePushError(lastError.message)) {
+					throw new Error(
+						`Push failed with a non-retryable error. Run \`mirror repair\` to reconcile the local repo.\n${lastError.message}`,
+					);
+				}
 				if (attempt < MAX_PUSH_RETRIES) {
 					const delay = 1000 * 2 ** attempt;
 					console.log(

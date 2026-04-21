@@ -15,14 +15,15 @@ export function registerSyncTool(server: McpServer, deps: MirrorDeps): void {
 		{
 			title: "Mirror Sync",
 			description:
-				"Sync work commits to personal mirror repo. Requires `mirror_init` to be run first. Incremental by default (syncs since last run). Use `full: true` for a complete re-sync, or `since` to override the start date.",
+				"Sync work commits to personal mirror repo. Requires `mirror_init` to be run first. Incremental by default (syncs since last run). Use `full: true` for a complete re-sync, `since` to override the start date, or `until` to cap the upper bound (useful when chunking a large range).",
 			inputSchema: {
 				full: z.boolean().default(false),
 				dryRun: z.boolean().default(false),
 				since: z.string().optional(),
+				until: z.string().optional(),
 			},
 		},
-		async ({ full, dryRun, since }) => {
+		async ({ full, dryRun, since, until }) => {
 			const runner = new SyncRunner({
 				configLoader: deps.configLoader,
 				stateStore: deps.stateStore,
@@ -31,7 +32,7 @@ export function registerSyncTool(server: McpServer, deps: MirrorDeps): void {
 				gitOps: deps.gitOps,
 			});
 
-			const result = await runner.run({ full, dryRun, since });
+			const result = await runner.run({ full, dryRun, since, until });
 
 			const repoLines = result.repoBreakdown.map(
 				(r) => `  ${r.repo}: ${r.count} commits`,
