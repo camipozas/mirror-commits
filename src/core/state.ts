@@ -1,14 +1,14 @@
 import {
-	access,
-	copyFile,
-	mkdir,
-	readFile,
-	rename,
-	writeFile,
-} from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { LEGACY_STATE_DIR, STATE_FILE } from "@/src/lib/constants";
-import { type State, stateSchema } from "@/src/lib/schema";
+  access,
+  copyFile,
+  mkdir,
+  readFile,
+  rename,
+  writeFile,
+} from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { LEGACY_STATE_DIR, STATE_FILE } from '@/src/lib/constants';
+import { type State, stateSchema } from '@/src/lib/schema';
 
 /**
  * Abstraction for loading and persisting {@link State}.
@@ -16,28 +16,28 @@ import { type State, stateSchema } from "@/src/lib/schema";
  * touching the filesystem — satisfying the Dependency Inversion principle.
  */
 export interface StateStore {
-	/**
-	 * Load the current state.
-	 *
-	 * @returns A promise resolving to the current {@link State}.
-	 */
-	load(): Promise<State>;
+  /**
+   * Load the current state.
+   *
+   * @returns A promise resolving to the current {@link State}.
+   */
+  load(): Promise<State>;
 
-	/**
-	 * Persist updated state.
-	 *
-	 * @param state - The state object to save.
-	 * @returns A promise that resolves when the write is complete.
-	 */
-	save(state: State): Promise<void>;
+  /**
+   * Persist updated state.
+   *
+   * @param state - The state object to save.
+   * @returns A promise that resolves when the write is complete.
+   */
+  save(state: State): Promise<void>;
 }
 
 /** State value used when no persisted state file exists yet. */
 const defaultState: State = {
-	lastSyncedAt: null,
-	totalCommitsMirrored: 0,
-	mirrorRepoPath: "",
-	mirroredShas: [],
+  lastSyncedAt: null,
+  totalCommitsMirrored: 0,
+  mirrorRepoPath: '',
+  mirroredShas: [],
 };
 
 /**
@@ -47,12 +47,12 @@ const defaultState: State = {
  * @returns `true` if the file exists and is accessible.
  */
 async function fileExists(path: string): Promise<boolean> {
-	try {
-		await access(path);
-		return true;
-	} catch {
-		return false;
-	}
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -66,22 +66,26 @@ async function fileExists(path: string): Promise<boolean> {
  *   `~/Documents/other/mirror-commits/state.json` for production use.
  */
 export async function migrateFromLegacyPath(
-	newStateFile: string,
-	legacyStateFile: string = join(LEGACY_STATE_DIR, "state.json"),
+  newStateFile: string,
+  legacyStateFile: string = join(LEGACY_STATE_DIR, 'state.json')
 ): Promise<void> {
-	if (await fileExists(newStateFile)) return;
-	if (!(await fileExists(legacyStateFile))) return;
+  if (await fileExists(newStateFile)) {
+    return;
+  }
+  if (!(await fileExists(legacyStateFile))) {
+    return;
+  }
 
-	await mkdir(dirname(newStateFile), { recursive: true });
-	await copyFile(legacyStateFile, newStateFile);
+  await mkdir(dirname(newStateFile), { recursive: true });
+  await copyFile(legacyStateFile, newStateFile);
 
-	const migratedMarker = `${legacyStateFile}.migrated`;
-	try {
-		await rename(legacyStateFile, migratedMarker);
-	} catch {
-		// Non-fatal: the copy already succeeded; leaving the legacy file in
-		// place is preferable to failing the load.
-	}
+  const migratedMarker = `${legacyStateFile}.migrated`;
+  try {
+    await rename(legacyStateFile, migratedMarker);
+  } catch {
+    // Non-fatal: the copy already succeeded; leaving the legacy file in
+    // place is preferable to failing the load.
+  }
 }
 
 /**
@@ -100,34 +104,34 @@ export async function migrateFromLegacyPath(
  * ```
  */
 export class FileStateStore implements StateStore {
-	private readonly stateFile: string;
+  private readonly stateFile: string;
 
-	/**
-	 * @param stateFile - Path to the state JSON file. Defaults to the
-	 *   XDG-compliant path at `~/.local/share/mirror-commits/state.json`.
-	 */
-	constructor(stateFile: string = STATE_FILE) {
-		this.stateFile = stateFile;
-	}
+  /**
+   * @param stateFile - Path to the state JSON file. Defaults to the
+   *   XDG-compliant path at `~/.local/share/mirror-commits/state.json`.
+   */
+  constructor(stateFile: string = STATE_FILE) {
+    this.stateFile = stateFile;
+  }
 
-	/** {@inheritDoc StateStore.load} */
-	async load(): Promise<State> {
-		try {
-			if (this.stateFile === STATE_FILE) {
-				await migrateFromLegacyPath(this.stateFile);
-			}
-			const raw = await readFile(this.stateFile, "utf-8");
-			return stateSchema.parse(JSON.parse(raw));
-		} catch {
-			return { ...defaultState };
-		}
-	}
+  /** {@inheritDoc StateStore.load} */
+  async load(): Promise<State> {
+    try {
+      if (this.stateFile === STATE_FILE) {
+        await migrateFromLegacyPath(this.stateFile);
+      }
+      const raw = await readFile(this.stateFile, 'utf-8');
+      return stateSchema.parse(JSON.parse(raw));
+    } catch {
+      return { ...defaultState };
+    }
+  }
 
-	/** {@inheritDoc StateStore.save} */
-	async save(state: State): Promise<void> {
-		await mkdir(dirname(this.stateFile), { recursive: true });
-		await writeFile(this.stateFile, JSON.stringify(state, null, 2));
-	}
+  /** {@inheritDoc StateStore.save} */
+  async save(state: State): Promise<void> {
+    await mkdir(dirname(this.stateFile), { recursive: true });
+    await writeFile(this.stateFile, JSON.stringify(state, null, 2));
+  }
 }
 
 /**
@@ -138,7 +142,7 @@ export class FileStateStore implements StateStore {
  *   default state if none exists.
  */
 export async function loadState(): Promise<State> {
-	return new FileStateStore().load();
+  return new FileStateStore().load();
 }
 
 /**
@@ -149,5 +153,5 @@ export async function loadState(): Promise<State> {
  * @returns A promise that resolves when the write is complete.
  */
 export async function saveState(state: State): Promise<void> {
-	return new FileStateStore().save(state);
+  return new FileStateStore().save(state);
 }

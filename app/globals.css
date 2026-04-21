@@ -1,39 +1,39 @@
 @import "tailwindcss";
 
 @theme {
-	--color-bg: #fafafa;
-	--color-card: #ffffff;
-	--color-card-hover: #f5f5f5;
-	--color-border: #e5e5e5;
-	--color-border-focus: #a3a3a3;
-	--color-text: #0a0a0a;
-	--color-text-muted: #525252;
-	--color-text-dim: #a3a3a3;
-	--color-primary: #16a34a;
-	--color-primary-dim: #bbf7d0;
-	--color-danger: #dc2626;
-	--color-warning: #ca8a04;
-	--color-info: #2563eb;
+  --color-bg: #fafafa;
+  --color-card: #ffffff;
+  --color-card-hover: #f5f5f5;
+  --color-border: #e5e5e5;
+  --color-border-focus: #a3a3a3;
+  --color-text: #0a0a0a;
+  --color-text-muted: #525252;
+  --color-text-dim: #a3a3a3;
+  --color-primary: #16a34a;
+  --color-primary-dim: #bbf7d0;
+  --color-danger: #dc2626;
+  --color-warning: #ca8a04;
+  --color-info: #2563eb;
 }
 
 html.dark {
-	--color-bg: #0a0a0a;
-	--color-card: #141414;
-	--color-card-hover: #1a1a1a;
-	--color-border: #262626;
-	--color-border-focus: #525252;
-	--color-text: #fafafa;
-	--color-text-muted: #a3a3a3;
-	--color-text-dim: #737373;
-	--color-primary: #22c55e;
-	--color-primary-dim: #166534;
-	--color-danger: #ef4444;
-	--color-warning: #eab308;
-	--color-info: #3b82f6;
+  --color-bg: #0a0a0a;
+  --color-card: #141414;
+  --color-card-hover: #1a1a1a;
+  --color-border: #262626;
+  --color-border-focus: #525252;
+  --color-text: #fafafa;
+  --color-text-muted: #a3a3a3;
+  --color-text-dim: #737373;
+  --color-primary: #22c55e;
+  --color-primary-dim: #166534;
+  --color-danger: #ef4444;
+  --color-warning: #eab308;
+  --color-info: #3b82f6;
 }
 
 body {
-	background-color: var(--color-bg);
-	color: var(--color-text);
-	font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  color: var(--color-text);
+  background-color: var(--color-bg);
 }

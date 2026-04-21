@@ -1,29 +1,60 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
-	"files": {
-		"includes": ["**", "!.next", "!node_modules", "!dist", "!work-mirror"]
-	},
-	"assist": {
-		"actions": {
-			"source": {
-				"organizeImports": "on"
-			}
-		}
-	},
-	"linter": {
-		"enabled": true,
-		"rules": {
-			"recommended": true
-		}
-	},
-	"formatter": {
-		"enabled": true,
-		"indentStyle": "tab"
-	},
-	"css": {
-		"parser": {
-			"cssModules": true,
-			"tailwindDirectives": true
-		}
-	}
+  "extends": [
+    "ultracite/biome/core",
+    "ultracite/biome/react",
+    "ultracite/biome/next"
+  ],
+  "files": {
+    "includes": ["**", "!.next", "!node_modules", "!dist", "!work-mirror"]
+  },
+  "linter": {
+    "rules": {
+      "style": {
+        "noNonNullAssertion": "off",
+        "noNestedTernary": "off",
+        "useFilenamingConvention": "off",
+        "noParameterAssign": "off",
+        "noEnum": "off",
+        "noSubstr": "off",
+        "useDefaultSwitchClause": "off",
+        "useAtIndex": "off",
+        "useConsistentTypeDefinitions": "off"
+      },
+      "suspicious": {
+        "noConsole": {
+          "level": "off",
+          "options": {
+            "allow": ["error"]
+          }
+        },
+        "useAwait": "off",
+        "noAlert": "off",
+        "noExplicitAny": "off",
+        "noArrayIndexKey": "off"
+      },
+      "complexity": {
+        "noExcessiveCognitiveComplexity": "off"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "off",
+        "useImageSize": "off",
+        "noNestedComponentDefinitions": "off"
+      },
+      "performance": {
+        "noBarrelFile": "off",
+        "noNamespaceImport": "off",
+        "useTopLevelRegex": "off"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
+      },
+      "a11y": "off"
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single"
+    }
+  },
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json"
 }

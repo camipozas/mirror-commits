@@ -1,7 +1,7 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-	serverExternalPackages: ["chalk", "commander", "@modelcontextprotocol/sdk"],
+  serverExternalPackages: ['chalk', 'commander', '@modelcontextprotocol/sdk'],
 };
 
 export default nextConfig;
