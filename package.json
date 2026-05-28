@@ -37,7 +37,7 @@
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "postcss": "^8.5.8",
+    "postcss": "^8.5.10",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "ultracite": "^7.6.0",
